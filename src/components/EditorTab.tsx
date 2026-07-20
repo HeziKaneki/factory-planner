@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, Edit2, Check, X, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Search, ChevronDown, ChevronRight, Upload } from 'lucide-react';
 import { ItemIcon } from './ItemIcon';
 
 interface EditorTabProps {
@@ -567,15 +567,38 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
 
                 <div className="space-y-1">
                   <label className="text-[11px] text-zinc-400 font-bold uppercase block">Custom Icon/Image URL (Optional):</label>
-                  <input
-                    type="text"
-                    value={itemIconUrl}
-                    onChange={(e) => setItemIconUrl(e.target.value)}
-                    className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono"
-                    placeholder="e.g. https://example.com/copper_plate.png"
-                  />
-                  <span className="text-[10px] text-zinc-500 italic block mt-1">
-                    Supports absolute URLs to custom images (PNG, SVG, JPG, etc.) for personalized setups.
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={itemIconUrl}
+                      onChange={(e) => setItemIconUrl(e.target.value)}
+                      className="flex-1 bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono"
+                      placeholder="e.g. /images/copper.png or base64 or URL"
+                    />
+                    <label className="factorio-btn text-[10px] px-3 py-1.5 font-bold uppercase cursor-pointer flex items-center gap-1 shrink-0 select-none">
+                      <Upload size={12} />
+                      Browse
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              if (ev.target?.result) {
+                                setItemIconUrl(ev.target.result as string);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 italic block mt-1 leading-relaxed">
+                    Supports local file paths, web URLs, base64 strings, or browse a local image file.
                   </span>
                 </div>
               </div>
@@ -701,15 +724,38 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
 
                 <div className="space-y-1">
                   <label className="text-[11px] text-zinc-400 font-bold uppercase block">Custom Icon/Image URL (Optional):</label>
-                  <input
-                    type="text"
-                    value={recipeIconUrl}
-                    onChange={(e) => setRecipeIconUrl(e.target.value)}
-                    className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono"
-                    placeholder="e.g. https://example.com/custom_recipe_icon.png"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={recipeIconUrl}
+                      onChange={(e) => setRecipeIconUrl(e.target.value)}
+                      className="flex-1 bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono"
+                      placeholder="e.g. /images/custom_recipe.png or base64 or URL"
+                    />
+                    <label className="factorio-btn text-[10px] px-3 py-1.5 font-bold uppercase cursor-pointer flex items-center gap-1 shrink-0 select-none">
+                      <Upload size={12} />
+                      Browse
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              if (ev.target?.result) {
+                                setRecipeIconUrl(ev.target.result as string);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                   <span className="text-[10px] text-zinc-500 italic block mt-1 font-normal leading-relaxed">
-                    Optional URL to customize the recipe icon. If left blank, defaults to the first product's icon.
+                    Supports local file paths, web URLs, base64 strings, or browse a local image file.
                   </span>
                 </div>
 
