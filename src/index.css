@@ -1,0 +1,194 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #181818;
+    border-left: 1px solid #2d2d2d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border: 2px solid #181818;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #e58e26;
+  }
+
+  /* Factorio panel styles */
+  .factorio-container {
+    background-color: #1e1e1e;
+    color: #e2e2e2;
+  }
+
+  .factorio-bg-mesh {
+    background-image: linear-gradient(#151515 1px, transparent 1px),
+                      linear-gradient(90deg, #151515 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-color: #1a1a1a;
+  }
+
+  .factorio-panel {
+    background-color: #242424;
+    border: 2px solid #141414;
+    box-shadow: inset 1px 1px 0px #3c3c3c, 
+                1px 1px 3px rgba(0,0,0,0.4);
+  }
+
+  .factorio-panel-inset {
+    background-color: #1a1a1a;
+    border: 2px solid #121212;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.6);
+  }
+
+  /* Factorio slots */
+  .factorio-slot {
+    width: 44px;
+    height: 44px;
+    background-color: #1d1d1d;
+    border: 2px solid #121212;
+    box-shadow: inset 2px 2px 3px rgba(0,0,0,0.8),
+                1px 1px 1px #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 2px;
+    transition: all 100ms;
+  }
+
+  .factorio-slot:hover {
+    border-color: #e58e26;
+    box-shadow: inset 2px 2px 3px rgba(0,0,0,0.8),
+                0 0 4px #e58e26;
+  }
+
+  .factorio-slot-active {
+    border-color: #e58e26;
+    background-color: #2d2d2d;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.4),
+                0 0 6px rgba(229,142,38,0.5);
+  }
+
+  /* Item overlay badge */
+  .factorio-badge {
+    position: absolute;
+    bottom: 1px;
+    right: 2px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 1px 1px 1px #000, 
+                 -1px -1px 1px #000, 
+                 1px -1px 1px #000, 
+                 -1px 1px 1px #000,
+                 0px 2px 2px rgba(0,0,0,0.8);
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  /* Factorio buttons */
+  .factorio-btn {
+    background-color: #383838;
+    border: 2px solid #141414;
+    box-shadow: inset 1px 1px 0px #525252,
+                1px 1px 2px rgba(0,0,0,0.4);
+    color: #e2e2e2;
+    transition: all 100ms;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+  }
+
+  .factorio-btn:hover:not(:disabled) {
+    background-color: #444444;
+    border-color: #303030;
+    box-shadow: inset 1px 1px 0px #5e5e5e,
+                0 0 4px rgba(229,142,38,0.3);
+  }
+
+  .factorio-btn:active:not(:disabled) {
+    background-color: #2b2b2b;
+    border-color: #141414;
+    box-shadow: inset 2px 2px 2px rgba(0,0,0,0.8);
+    transform: translateY(1px);
+  }
+
+  .factorio-btn-orange {
+    background-color: #e58e26;
+    border-color: #7b4606;
+    color: #ffffff;
+    box-shadow: inset 1px 1px 0px #ffbc68,
+                1px 1px 2px rgba(0,0,0,0.4);
+  }
+
+  .factorio-btn-orange:hover:not(:disabled) {
+    background-color: #f39c12;
+    box-shadow: inset 1px 1px 0px #ffcc88,
+                0 0 6px rgba(229,142,38,0.5);
+  }
+
+  .factorio-btn-orange:active:not(:disabled) {
+    background-color: #d35400;
+    box-shadow: inset 2px 2px 3px rgba(0,0,0,0.8);
+  }
+
+  .factorio-btn-red {
+    background-color: #c0392b;
+    border-color: #78281f;
+    color: #ffffff;
+    box-shadow: inset 1px 1px 0px #ec7063,
+                1px 1px 2px rgba(0,0,0,0.4);
+  }
+
+  .factorio-btn-red:hover:not(:disabled) {
+    background-color: #cd6155;
+  }
+
+  .factorio-btn-red:active:not(:disabled) {
+    background-color: #922b21;
+    box-shadow: inset 2px 2px 3px rgba(0,0,0,0.8);
+  }
+
+  .factorio-btn-green {
+    background-color: #27ae60;
+    border-color: #1e8449;
+    color: #ffffff;
+    box-shadow: inset 1px 1px 0px #58d68d,
+                1px 1px 2px rgba(0,0,0,0.4);
+  }
+
+  .factorio-btn-green:hover:not(:disabled) {
+    background-color: #2ecc71;
+  }
+
+  /* LED indicator status lights */
+  .led-green {
+    background-color: #2ecc71;
+    box-shadow: 0 0 6px #2ecc71, inset 0 0 2px #fff;
+  }
+  .led-red {
+    background-color: #e74c3c;
+    box-shadow: 0 0 6px #e74c3c, inset 0 0 2px #fff;
+  }
+  .led-yellow {
+    background-color: #f1c40f;
+    box-shadow: 0 0 6px #f1c40f, inset 0 0 2px #fff;
+  }
+}
+

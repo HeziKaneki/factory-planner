@@ -1,0 +1,6 @@
+{
+  "name": "Factory Planner",
+  "description": "An interactive, high-fidelity Factorio-style factory production planner and recipe calculator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
