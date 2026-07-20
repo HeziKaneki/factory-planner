@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Copy, Check, RefreshCw, AlertTriangle, Upload, Download } from 'lucide-react';
 import { initialCustomDb } from '../data/initialDb';
 
 interface DatabaseTabProps {
@@ -12,6 +12,7 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ customDb, onSave }) =>
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Keep in sync with customDb prop
   useEffect(() => {
@@ -61,6 +62,65 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ customDb, onSave }) =>
     });
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setJsonText(text);
+      try {
+        const parsed = JSON.parse(text);
+        // Validate schema roughly
+        if (!parsed.game_name) throw new Error('Structure missing "game_name"');
+        if (!parsed.items) throw new Error('Structure missing "items" section');
+        if (!parsed.machines) throw new Error('Structure missing "machines" section');
+        if (!parsed.recipes) throw new Error('Structure missing "recipes" section');
+        
+        onSave(parsed);
+        setError(null);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } catch (err: any) {
+        setError(err.message || 'Invalid JSON format in file');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleExport = () => {
+    try {
+      const dataStr = jsonText;
+      let fileName = 'factory_planner_db.txt';
+      try {
+        const parsed = JSON.parse(jsonText);
+        if (parsed.game_name) {
+          fileName = `${parsed.game_name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_db.txt`;
+        }
+      } catch (e) {
+        // use default name if invalid JSON
+      }
+
+      const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError('Export failed: ' + err.message);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col p-5 overflow-hidden bg-zinc-950/40 text-left gap-4 h-full">
       <div className="flex items-center justify-between border-b border-zinc-900 pb-3 shrink-0">
@@ -73,6 +133,29 @@ export const DatabaseTab: React.FC<DatabaseTabProps> = ({ customDb, onSave }) =>
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,.json"
+            className="hidden"
+          />
+          <button
+            onClick={handleImportClick}
+            className="factorio-btn text-xs px-3 py-1.5 flex items-center gap-1.5 uppercase font-bold text-zinc-300"
+            title="Import database from .txt file"
+          >
+            <Upload size={14} />
+            Import .txt
+          </button>
+          <button
+            onClick={handleExport}
+            className="factorio-btn text-xs px-3 py-1.5 flex items-center gap-1.5 uppercase font-bold text-zinc-300"
+            title="Export database to .txt file"
+          >
+            <Download size={14} />
+            Export .txt
+          </button>
           <button
             onClick={handleCopy}
             className="factorio-btn text-xs px-3 py-1.5 flex items-center gap-1.5 uppercase font-bold text-zinc-300"
