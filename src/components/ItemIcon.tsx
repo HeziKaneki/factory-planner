@@ -45,6 +45,18 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 2
           setResolvedId(id);
           return;
         }
+
+        if (parsed?.machines?.[id]?.icon_url) {
+          setDbIconUrl(parsed.machines[id].icon_url);
+          setResolvedId(id);
+          return;
+        }
+
+        if (parsed?.modifiers?.[id]?.icon_url) {
+          setDbIconUrl(parsed.modifiers[id].icon_url);
+          setResolvedId(id);
+          return;
+        }
       }
     } catch (e) {}
     setDbIconUrl(undefined);
