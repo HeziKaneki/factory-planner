@@ -711,8 +711,8 @@ export default function App() {
                       <th className="w-20 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Recipe</th>
                       <th className="w-48 px-4 py-2.5 tracking-wider border-r border-zinc-950">Machine & Count</th>
                       <th className="w-48 px-4 py-2.5 tracking-wider border-r border-zinc-950">Beacon Transmitter</th>
-                      <th className="w-28 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Output Rate</th>
-                      <th className="w-24 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Byproducts</th>
+                      <th className="w-32 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Output Rate</th>
+                      <th className="w-36 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Byproducts</th>
                       <th className="px-4 py-2.5 tracking-wider">Ingredient Requirements</th>
                     </tr>
                   </thead>
@@ -892,13 +892,17 @@ export default function App() {
 
                           {/* Column 5: Products Out Rate */}
                           <td className="px-3 py-3.5 border-r border-zinc-950 text-center">
-                            <div className="flex flex-col items-center gap-1">
+                            <div className="flex flex-col items-center gap-1.5 justify-center">
                               {(recipe.products || [{ itemId: line.recipeId, amount: 1 }]).map((p, pIdx) => {
                                 const prodRate = lineOutputRate * (p.amount / (recipe.products?.[0]?.amount || 1));
                                 return (
-                                  <div key={pIdx} className="factorio-slot w-11 h-11 bg-zinc-950/30 cursor-default relative shrink-0">
-                                    <ItemIcon id={p.itemId} size={30} />
-                                    <div className="factorio-badge text-green-400">
+                                  <div 
+                                    key={pIdx} 
+                                    className="factorio-slot w-12 h-12 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
+                                    title={`${items[p.itemId]?.name || p.itemId}: ${prodRate.toFixed(2)}`}
+                                  >
+                                    <ItemIcon id={p.itemId} size={36} />
+                                    <div className="factorio-badge text-green-400 border border-zinc-800 bg-zinc-950/85 leading-none">
                                       {formatQuantity(prodRate)}
                                     </div>
                                   </div>
@@ -911,13 +915,17 @@ export default function App() {
                           <td className="px-3 py-3.5 border-r border-zinc-950 text-center">
                             <div className="flex justify-center font-mono text-[10px] text-zinc-600">
                               {recipe.products && recipe.products.length > 1 ? (
-                                <div className="flex flex-col gap-1 items-center">
+                                <div className="flex flex-wrap gap-1.5 justify-center">
                                   {recipe.products.slice(1).map((p, pIdx) => {
                                     const byRate = lineOutputRate * (p.amount / recipe.products[0].amount);
                                     return (
-                                      <div key={pIdx} className="factorio-slot w-10 h-10 bg-zinc-950/30 cursor-default relative shrink-0" title={items[p.itemId]?.name}>
-                                        <ItemIcon id={p.itemId} size={24} />
-                                        <div className="factorio-badge text-amber-500 font-mono text-[9px]">
+                                      <div 
+                                        key={pIdx} 
+                                        className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all" 
+                                        title={`${items[p.itemId]?.name || p.itemId}: ${byRate.toFixed(2)}`}
+                                      >
+                                        <ItemIcon id={p.itemId} size={32} />
+                                        <div className="factorio-badge text-green-400 font-mono">
                                           {formatQuantity(byRate)}
                                         </div>
                                       </div>
@@ -939,11 +947,11 @@ export default function App() {
                                 return (
                                   <div 
                                     key={ing.itemId} 
-                                    className="factorio-slot w-10 h-10 group relative cursor-help shrink-0"
-                                    title={`${items[ing.itemId]?.name || ing.itemId}: ${ingRateForUnit.toFixed(1)}`}
+                                    className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all"
+                                    title={`${items[ing.itemId]?.name || ing.itemId}: ${ingRateForUnit.toFixed(2)}`}
                                   >
-                                    <ItemIcon id={ing.itemId} size={26} />
-                                    <div className="factorio-badge">
+                                    <ItemIcon id={ing.itemId} size={32} />
+                                    <div className="factorio-badge text-xs font-mono">
                                       {formatQuantity(ingRateForUnit)}
                                     </div>
                                   </div>
