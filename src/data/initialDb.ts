@@ -8,6 +8,12 @@ export const initialCustomDb = {
     "raw": "Raw Resources",
     "utility": "Utilities"
   },
+  modifier_categories: {
+    "no-category": "No Category",
+    "speed": "Speed Enhancers",
+    "productivity": "Productivity Boosters",
+    "efficiency": "Efficiency Optimizers"
+  },
   items: {
     "iron-plate": { "name": "Iron Plate", "category": "intermediate" },
     "iron-gear-wheel": { "name": "Iron Gear Wheel", "category": "intermediate" },
@@ -324,19 +330,22 @@ export const initialCustomDb = {
       "name": "Speed module 3",
       "speed_bonus": 0.50,
       "productivity_bonus": 0.0,
-      "energy_bonus": 0.70
+      "energy_bonus": 0.70,
+      "category": "speed"
     },
     "productivity-module-3": {
       "name": "Productivity module 3",
       "speed_bonus": -0.15,
       "productivity_bonus": 0.10,
-      "energy_bonus": 0.80
+      "energy_bonus": 0.80,
+      "category": "productivity"
     },
     "efficiency-module-3": {
       "name": "Efficiency module 3",
       "speed_bonus": 0.0,
       "productivity_bonus": 0.0,
-      "energy_bonus": -0.50
+      "energy_bonus": -0.50,
+      "category": "efficiency"
     }
   }
 };

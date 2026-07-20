@@ -43,6 +43,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
   const [modSpeed, setModSpeed] = useState(0.0);
   const [modProd, setModProd] = useState(0.0);
   const [modifierIconUrl, setModifierIconUrl] = useState('');
+  const [modifierCategory, setModifierCategory] = useState('no-category');
 
   const [catId, setCatId] = useState('');
   const [catName, setCatName] = useState('');
@@ -81,17 +82,42 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
     return cats;
   }, [customDb.machine_categories]);
 
+  // Available modifier categories list
+  const dbModifierCategories = useMemo(() => {
+    const cats = customDb.modifier_categories || {
+      'speed': 'Speed Enhancers',
+      'productivity': 'Productivity Boosters',
+      'efficiency': 'Efficiency Optimizers',
+      'no-category': 'No Category'
+    };
+    if (!cats['no-category']) {
+      return {
+        'no-category': 'No Category',
+        ...cats
+      };
+    }
+    return cats;
+  }, [customDb.modifier_categories]);
+
   const filteredEntries = useMemo(() => {
     let data = {};
     if (activeSection === 'categories') {
-      data = categorySubTab === 'items'
-        ? (customDb.categories || {})
-        : (customDb.machine_categories || {
-            'assembling-machine': 'Assembling Machines',
-            'furnace': 'Furnaces',
-            'chemical-plant': 'Chemical Plants',
-            'miner': 'Mining Drills'
-          });
+      if (categorySubTab === 'items') {
+        data = customDb.categories || {};
+      } else if (categorySubTab === 'machines') {
+        data = customDb.machine_categories || {
+          'assembling-machine': 'Assembling Machines',
+          'furnace': 'Furnaces',
+          'chemical-plant': 'Chemical Plants',
+          'miner': 'Mining Drills'
+        };
+      } else if (categorySubTab === 'modifiers') {
+        data = customDb.modifier_categories || {
+          'speed': 'Speed Enhancers',
+          'productivity': 'Productivity Boosters',
+          'efficiency': 'Efficiency Optimizers'
+        };
+      }
     } else {
       data = customDb[activeSection] || {};
     }
@@ -153,6 +179,28 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
     return Object.entries(groups).filter(([_, items]) => items.length > 0);
   }, [filteredEntries, activeSection, dbMachineCategories]);
 
+  // Group modifiers by category for cleaner display in EditorTab list
+  const groupedModifiers = useMemo(() => {
+    if (activeSection !== 'modifiers') return null;
+    
+    const groups: Record<string, [string, any][]> = {};
+    
+    // Initialize groups with standard modifier categories to preserve standard order
+    Object.keys(dbModifierCategories).forEach(catKey => {
+      groups[catKey] = [];
+    });
+    
+    filteredEntries.forEach(([id, val]: [string, any]) => {
+      const cat = val.category || 'no-category';
+      if (!groups[cat]) {
+        groups[cat] = [];
+      }
+      groups[cat].push([id, val]);
+    });
+    
+    return Object.entries(groups).filter(([_, items]) => items.length > 0);
+  }, [filteredEntries, activeSection, dbModifierCategories]);
+
   // Load entry into form for editing
   const handleStartEdit = (id: string, val: any) => {
     setEditingId(id);
@@ -182,6 +230,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
       setModSpeed(val.speed_bonus ?? 0.0);
       setModProd(val.productivity_bonus ?? 0.0);
       setModifierIconUrl(val.icon_url || '');
+      setModifierCategory(val.category || 'no-category');
     } else if (activeSection === 'categories') {
       setCatId(id);
       setCatName(typeof val === 'string' ? val : (val.name || ''));
@@ -216,6 +265,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
       setModSpeed(0.0);
       setModProd(0.0);
       setModifierIconUrl('');
+      setModifierCategory('no-category');
     } else if (activeSection === 'categories') {
       setCatId('');
       setCatName('');
@@ -262,7 +312,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
         name: modifierName,
         speed_bonus: Number(modSpeed),
         productivity_bonus: Number(modProd),
-        icon_url: modifierIconUrl.trim()
+        icon_url: modifierIconUrl.trim(),
+        category: modifierCategory
       };
       updatedDb.modifiers = { ...updatedDb.modifiers, [idToSave]: valToSave };
     } else if (activeSection === 'categories') {
@@ -272,7 +323,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
       if (categorySubTab === 'items') {
         if (!updatedDb.categories) updatedDb.categories = {};
         updatedDb.categories = { ...updatedDb.categories, [idToSave]: valToSave };
-      } else {
+      } else if (categorySubTab === 'machines') {
         if (!updatedDb.machine_categories) {
           updatedDb.machine_categories = {
             'assembling-machine': 'Assembling Machines',
@@ -282,6 +333,15 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
           };
         }
         updatedDb.machine_categories = { ...updatedDb.machine_categories, [idToSave]: valToSave };
+      } else if (categorySubTab === 'modifiers') {
+        if (!updatedDb.modifier_categories) {
+          updatedDb.modifier_categories = {
+            'speed': 'Speed Enhancers',
+            'productivity': 'Productivity Boosters',
+            'efficiency': 'Efficiency Optimizers'
+          };
+        }
+        updatedDb.modifier_categories = { ...updatedDb.modifier_categories, [idToSave]: valToSave };
       }
     }
 
@@ -292,7 +352,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
           if (updatedDb.categories) {
             delete updatedDb.categories[editingId];
           }
-        } else {
+        } else if (categorySubTab === 'machines') {
           if (updatedDb.machine_categories) {
             delete updatedDb.machine_categories[editingId];
           } else {
@@ -305,6 +365,19 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
             const custom = { ...defaultMachineCats };
             delete custom[editingId];
             updatedDb.machine_categories = custom;
+          }
+        } else if (categorySubTab === 'modifiers') {
+          if (updatedDb.modifier_categories) {
+            delete updatedDb.modifier_categories[editingId];
+          } else {
+            const defaultModCats = {
+              'speed': 'Speed Enhancers',
+              'productivity': 'Productivity Boosters',
+              'efficiency': 'Efficiency Optimizers'
+            };
+            const custom = { ...defaultModCats };
+            delete custom[editingId];
+            updatedDb.modifier_categories = custom;
           }
         }
       } else {
@@ -325,7 +398,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
         if (updatedDb.categories) {
           delete updatedDb.categories[id];
         }
-      } else {
+      } else if (categorySubTab === 'machines') {
         if (!updatedDb.machine_categories) {
           updatedDb.machine_categories = {
             'assembling-machine': 'Assembling Machines',
@@ -335,6 +408,15 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
           };
         }
         delete updatedDb.machine_categories[id];
+      } else if (categorySubTab === 'modifiers') {
+        if (!updatedDb.modifier_categories) {
+          updatedDb.modifier_categories = {
+            'speed': 'Speed Enhancers',
+            'productivity': 'Productivity Boosters',
+            'efficiency': 'Efficiency Optimizers'
+          };
+        }
+        delete updatedDb.modifier_categories[id];
       }
     } else {
       if (updatedDb[activeSection]) {
@@ -415,7 +497,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
 
         {/* Sub-tab selection bar for Categories */}
         {activeSection === 'categories' && (
-          <div className="grid grid-cols-2 border-b border-zinc-950 bg-zinc-950/60 p-1 gap-1 shrink-0">
+          <div className="grid grid-cols-3 border-b border-zinc-950 bg-zinc-950/60 p-1 gap-1 shrink-0">
             <button
               onClick={() => {
                 setCategorySubTab('items');
@@ -427,7 +509,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                   : 'bg-zinc-900/40 text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              Item & Recipe Cats
+              Item Cats
             </button>
             <button
               onClick={() => {
@@ -441,6 +523,19 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
               }`}
             >
               Machine Cats
+            </button>
+            <button
+              onClick={() => {
+                setCategorySubTab('modifiers');
+                setEditingId(null);
+              }}
+              className={`py-1.5 text-[9px] font-bold uppercase rounded text-center transition-colors cursor-pointer select-none ${
+                categorySubTab === 'modifiers'
+                  ? 'bg-[#e58e26] text-zinc-950'
+                  : 'bg-zinc-900/40 text-[#e58e26] hover:text-zinc-200'
+              }`}
+            >
+              Mod Cats
             </button>
           </div>
         )}
@@ -600,6 +695,106 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                     {!isCollapsed && (
                       <div className="space-y-1 pl-1 pt-1">
                         {machinesList.map(([id, val]: [string, any]) => {
+                          const displayName = typeof val === 'string' ? val : (val.name || id);
+                          return (
+                            <div
+                              key={id}
+                              className={`group flex items-center justify-between p-2 rounded border text-xs font-semibold transition-all ${
+                                editingId === id
+                                  ? 'bg-[#e58e26]/10 border-[#e58e26] text-white'
+                                  : 'bg-zinc-900/10 hover:bg-zinc-800/20 border-transparent text-zinc-300'
+                              }`}
+                            >
+                              <div
+                                className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
+                                onClick={() => handleStartEdit(id, val)}
+                              >
+                                <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
+                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
+                                </div>
+                                <div className="truncate text-left">
+                                  <div className="font-bold text-white">{displayName}</div>
+                                  <div className="text-[10px] text-zinc-500 font-mono mt-0.5">{id}</div>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-1 items-center">
+                                {deleteConfirmId === id ? (
+                                  <div className="flex items-center gap-1.5 bg-red-950/80 px-1.5 py-0.5 rounded border border-red-800">
+                                    <span className="text-[9px] text-red-200 uppercase font-bold">Sure?</span>
+                                    <button
+                                      onClick={() => handleDelete(id)}
+                                      className="text-red-400 hover:text-red-200 cursor-pointer"
+                                      title="Confirm delete"
+                                    >
+                                      <Check size={12} />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirmId(null)}
+                                      className="text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                                      title="Cancel"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setDeleteConfirmId(null);
+                                        handleStartEdit(id, val);
+                                      }}
+                                      className="p-1 hover:text-white text-zinc-500 transition-colors cursor-pointer"
+                                      title="Edit entry"
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirmId(id)}
+                                      className="p-1 hover:text-red-400 text-zinc-500 transition-colors cursor-pointer"
+                                      title="Delete entry"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : activeSection === 'modifiers' && groupedModifiers ? (
+            <div className="space-y-2 mt-2">
+              {groupedModifiers.map(([catKey, modifiersList]) => {
+                const catName = dbModifierCategories[catKey] || (catKey === 'no-category' ? 'No Category' : catKey);
+                const isCollapsed = !!collapsedCategories[`modifier-${catKey}`];
+                return (
+                  <div key={catKey} className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setCollapsedCategories(prev => ({
+                          ...prev,
+                          [`modifier-${catKey}`]: !prev[`modifier-${catKey}`]
+                        }));
+                      }}
+                      className="w-full flex items-center justify-between px-2 py-1.5 bg-zinc-950/60 hover:bg-zinc-950 rounded border border-zinc-900 text-[10px] font-bold text-zinc-400 hover:text-zinc-200 uppercase tracking-wider transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-[#e58e26]">✦</span>
+                        <span>{catName}</span>
+                        <span className="text-[9px] text-zinc-500 font-normal">({modifiersList.length})</span>
+                      </span>
+                      {isCollapsed ? <ChevronRight size={12} className="text-zinc-500" /> : <ChevronDown size={12} className="text-zinc-500" />}
+                    </button>
+
+                    {!isCollapsed && (
+                      <div className="space-y-1 pl-1 pt-1">
+                        {modifiersList.map(([id, val]: [string, any]) => {
                           const displayName = typeof val === 'string' ? val : (val.name || id);
                           return (
                             <div
@@ -1195,6 +1390,19 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-[11px] text-[#e58e26] font-bold uppercase block">Category:</label>
+                  <select
+                    value={modifierCategory}
+                    onChange={(e) => setModifierCategory(e.target.value)}
+                    className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-semibold"
+                  >
+                    {Object.entries(dbModifierCategories).map(([key, name]: [string, any]) => (
+                      <option key={key} value={key}>{name} ({key})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-[11px] text-zinc-400 font-bold uppercase block">Custom Icon/Image URL (Optional):</label>
                   <div className="flex gap-2">
                     <input
@@ -1237,7 +1445,9 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
             {activeSection === 'categories' && (
               <div className="space-y-4">
                 <div className="bg-zinc-950/40 p-2.5 rounded border border-zinc-900 text-[11px] font-bold text-zinc-400 mb-1">
-                  Editing: <span className="text-[#e58e26] uppercase">{categorySubTab === 'items' ? 'Item & Recipe Category' : 'Machine Category'}</span>
+                  Editing: <span className="text-[#e58e26] uppercase">
+                    {categorySubTab === 'items' ? 'Item & Recipe Category' : categorySubTab === 'machines' ? 'Machine Category' : 'Modifier Category'}
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -1248,7 +1458,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                       onChange={(e) => setCatId(e.target.value)}
                       disabled={editingId !== '_new_'}
                       className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono font-bold"
-                      placeholder={categorySubTab === 'items' ? "e.g. intermediate" : "e.g. assembling-machine"}
+                      placeholder={categorySubTab === 'items' ? "e.g. intermediate" : categorySubTab === 'machines' ? "e.g. assembling-machine" : "e.g. speed"}
                     />
                   </div>
                   <div className="space-y-1">
@@ -1258,7 +1468,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                       value={catName}
                       onChange={(e) => setCatName(e.target.value)}
                       className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-bold"
-                      placeholder={categorySubTab === 'items' ? "e.g. Intermediate Components" : "e.g. Assembling Machines"}
+                      placeholder={categorySubTab === 'items' ? "e.g. Intermediate Components" : categorySubTab === 'machines' ? "e.g. Assembling Machines" : "e.g. Speed Enhancers"}
                     />
                   </div>
                 </div>

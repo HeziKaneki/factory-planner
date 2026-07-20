@@ -106,7 +106,8 @@ export function normalizeDatabase(customDb: any) {
         productivityBonus: typeof val.productivity_bonus !== 'undefined' ? val.productivity_bonus : (val.productivityBonus || 0.0),
         energyBonus: typeof val.energy_bonus !== 'undefined' ? val.energy_bonus : (val.energyBonus || 0.0),
         color: val.color || 'blue',
-        bgBorderColor: val.bgBorderColor || 'border-blue-500/80 bg-blue-950/70'
+        bgBorderColor: val.bgBorderColor || 'border-blue-500/80 bg-blue-950/70',
+        category: val.category || 'no-category'
       };
     });
   }
@@ -145,10 +146,7 @@ export function createDefaultLine(recipeId: string, customDb?: any, targetItemId
     id: `line-${recipeId}`,
     recipeId,
     machineId,
-    modules: [],
-    beaconId: null,
-    beaconCount: 0,
-    beaconModules: [],
+    modifiers: [],
     enabled: true,
     targetItemId
   };
@@ -212,21 +210,13 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
     let prodBonus = 0;
     let energyBonus = 0;
 
-    lineConfig.modules.forEach(modId => {
-      const mod = modules[modId];
-      if (mod) {
-        speedBonus += mod.speedBonus;
-        prodBonus += mod.productivityBonus;
-        energyBonus += mod.energyBonus;
-      }
-    });
-
-    if (lineConfig.beaconId && lineConfig.beaconCount > 0) {
-      lineConfig.beaconModules.forEach(modId => {
-        const mod = modules[modId];
+    if (lineConfig.modifiers) {
+      lineConfig.modifiers.forEach(lm => {
+        const mod = modules[lm.id];
         if (mod) {
-          speedBonus += lineConfig.beaconCount * 0.5 * mod.speedBonus;
-          energyBonus += lineConfig.beaconCount * 0.5 * mod.energyBonus;
+          speedBonus += (mod.speedBonus || 0) * lm.count;
+          prodBonus += (mod.productivityBonus || 0) * lm.count;
+          energyBonus += (mod.energyBonus || 0) * lm.count;
         }
       });
     }

@@ -37,6 +37,22 @@ export function formatQuantity(value: number): string {
   return value % 1 === 0 ? `${value.toFixed(0)}` : `${value.toFixed(1)}`;
 }
 
+// Format exact up to 3 decimal places without trailing zeros (e.g. 1.234)
+export function formatExactTooltip(value: number): string {
+  return (Math.round(value * 1000) / 1000).toString();
+}
+
+// Display one decimal place rounded up on badge values (e.g. 1.21 -> 1.3, 1.0 -> 1)
+export function formatBadgeValue(value: number): string {
+  if (value === 0) return '0';
+  const roundedUp = Math.ceil(value * 10) / 10;
+  if (roundedUp >= 1000) {
+    const kValue = Math.ceil((value / 1000) * 10) / 10;
+    return kValue % 1 === 0 ? `${kValue.toFixed(0)}k` : `${kValue.toFixed(1)}k`;
+  }
+  return roundedUp % 1 === 0 ? `${roundedUp.toFixed(0)}` : `${roundedUp.toFixed(1)}`;
+}
+
 export default function App() {
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'planner' | 'editor' | 'database'>('planner');
@@ -228,10 +244,7 @@ export default function App() {
 
   const handleSaveMachineConfig = (config: {
     machineId: string;
-    modules: string[];
-    beaconCount: number;
-    beaconId: string | null;
-    beaconModules: string[];
+    modifiers: any[];
   }) => {
     if (!activePage || !activeLineIdForConfig) return;
 
@@ -241,7 +254,8 @@ export default function App() {
     if (existingIdx !== -1) {
       updatedLines[existingIdx] = {
         ...updatedLines[existingIdx],
-        ...config
+        machineId: config.machineId,
+        modifiers: config.modifiers
       };
     }
 
@@ -572,7 +586,7 @@ export default function App() {
                         <div 
                           key={t.itemId + '-' + idx} 
                           className="factorio-slot w-12 h-12 shrink-0 relative group cursor-pointer hover:border-[#e58e26] transition-all"
-                          title={`${items[t.itemId]?.name || t.itemId}: ${t.rate} /s (Left-click to change rate, Middle-click to remove)`}
+                          title={`${items[t.itemId]?.name || t.itemId}: ${formatExactTooltip(t.rate)} /s (Left-click to change rate, Middle-click to remove)`}
                           onClick={() => {
                             setRateEditItemId(t.itemId);
                             setPromptInputValue(t.rate.toString());
@@ -592,7 +606,7 @@ export default function App() {
                           <div
                             className="factorio-badge text-green-400 border border-zinc-800 bg-zinc-950/85 hover:text-[#e58e26] leading-none"
                           >
-                            {formatQuantity(t.rate)}
+                            {formatBadgeValue(t.rate)}
                           </div>
 
                           {/* Delete Target button */}
@@ -635,11 +649,11 @@ export default function App() {
                       <div 
                         key={bp.itemId} 
                         className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help"
-                        title={`${items[bp.itemId]?.name || bp.itemId}: ${bp.rate.toFixed(1)}`}
+                        title={`${items[bp.itemId]?.name || bp.itemId}: ${formatExactTooltip(bp.rate)}`}
                       >
                         <ItemIcon id={bp.itemId} size={32} />
                         <div className="factorio-badge text-green-400 font-mono">
-                          {formatQuantity(bp.rate)}
+                          {formatBadgeValue(bp.rate)}
                         </div>
                       </div>
                     ))}
@@ -669,11 +683,11 @@ export default function App() {
                           key={ing.itemId} 
                           onClick={() => setSelectedIngredientId(ing.itemId)}
                           className="factorio-slot w-11 h-11 shrink-0 group relative cursor-pointer hover:border-[#e58e26] transition-all"
-                          title={`${items[ing.itemId]?.name || ing.itemId}: ${rateForUnit.toFixed(1)} (Click to select recipe)`}
+                          title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(rateForUnit)} (Click to select recipe)`}
                         >
                           <ItemIcon id={ing.itemId} size={32} />
                           <div className="factorio-badge text-xs font-mono">
-                            {formatQuantity(rateForUnit)}
+                            {formatBadgeValue(rateForUnit)}
                           </div>
                         </div>
                       );
@@ -699,7 +713,7 @@ export default function App() {
                       <th className="w-24 px-4 py-2.5 tracking-wider border-r border-zinc-950 text-center">Step</th>
                       <th className="w-20 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Recipe</th>
                       <th className="w-48 px-4 py-2.5 tracking-wider border-r border-zinc-950">Machine & Count</th>
-                      <th className="w-48 px-4 py-2.5 tracking-wider border-r border-zinc-950">Beacon Transmitter</th>
+                      <th className="w-52 px-4 py-2.5 tracking-wider border-r border-zinc-950">Modifiers</th>
                       <th className="w-32 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Output Rate</th>
                       <th className="w-36 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Byproducts</th>
                       <th className="px-4 py-2.5 tracking-wider">Ingredient Requirements</th>
@@ -789,97 +803,62 @@ export default function App() {
                               <button
                                 onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
                                 className="factorio-slot w-11 h-11 shrink-0 relative group hover:border-[#e58e26] cursor-pointer"
-                                title="Click to config machine & modules"
+                                title={`${machines[line.machineId]?.name || line.machineId} (Exact Count: ${formatExactTooltip(line.machineCount)}) - Click to config machine & modifiers`}
                               >
                                 <ItemIcon id={line.machineId} size={32} />
                                 <div className="factorio-badge text-amber-500 font-bold bg-zinc-950/60 px-0.5 rounded leading-none border border-zinc-900/40">
-                                  {formatQuantity(line.machineCount)}
+                                  {formatBadgeValue(line.machineCount)}
                                 </div>
                               </button>
 
-                              <div className="flex flex-col gap-1 flex-1 min-w-0 text-left">
-                                <span className="font-bold text-zinc-300 block text-[11px] truncate" title={machines[line.machineId]?.name}>
+                              <div className="flex flex-col flex-1 min-w-0 text-left justify-center">
+                                <span className="font-bold text-zinc-300 block text-xs truncate" title={machines[line.machineId]?.name}>
                                   {machines[line.machineId]?.name || line.machineId}
                                 </span>
-                                
-                                <div className="flex gap-1">
-                                  {line.lineConfig.modules.length > 0 ? (
-                                    line.lineConfig.modules.map((modId, mIdx) => (
-                                      <div 
-                                        key={mIdx} 
-                                        className="w-5 h-5 bg-zinc-950 border border-zinc-800 rounded flex items-center justify-center shrink-0"
-                                        title={modules[modId]?.name}
-                                      >
-                                        <ItemIcon id={modId} size={15} />
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <button
-                                      onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
-                                      className="text-[10px] text-zinc-500 hover:text-zinc-300 font-semibold uppercase flex items-center gap-0.5 cursor-pointer"
-                                    >
-                                      <span>+ Modules</span>
-                                    </button>
-                                  )}
-                                </div>
+                                <span className="text-[10px] text-zinc-500 font-semibold font-mono block uppercase" title={`Exact count: ${formatExactTooltip(line.machineCount)}`}>
+                                  x{formatExactTooltip(line.machineCount)} {line.machineCount === 1 ? 'Machine' : 'Machines'}
+                                </span>
                               </div>
                             </div>
                           </td>
 
-                          {/* Column 4: Beacon slots */}
+                          {/* Column 4: Modifiers */}
                           <td className="px-4 py-3.5 border-r border-zinc-950">
-                            {line.lineConfig.beaconCount > 0 ? (
-                              <div className="flex items-center gap-3 text-left">
+                            <div className="flex items-center gap-2 max-w-full">
+                              {line.lineConfig.modifiers && line.lineConfig.modifiers.length > 0 ? (
+                                <div className="flex gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
+                                  {line.lineConfig.modifiers.map((lm, lmIdx) => (
+                                    <div 
+                                      key={lmIdx} 
+                                      onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
+                                      className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner relative cursor-pointer"
+                                      title={`${modules[lm.id]?.name || lm.id} x${lm.count}`}
+                                    >
+                                      <ItemIcon id={lm.id} size={22} />
+                                      <div className="absolute -bottom-1 -right-1 text-[9px] font-mono font-bold bg-[#e58e26] text-zinc-950 border border-zinc-950/60 leading-none py-0.5 px-1 rounded shadow">
+                                        {lm.count}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  
+                                  {/* Compact Add button */}
+                                  <button
+                                    onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
+                                    className="w-9 h-9 border border-dashed border-zinc-800 hover:border-zinc-600 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 text-xs shrink-0 cursor-pointer transition-colors bg-zinc-950/10"
+                                    title="Add / Edit Modifiers"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              ) : (
                                 <button
                                   onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
-                                  className="factorio-slot w-11 h-11 shrink-0 relative group hover:border-cyan-500 cursor-pointer"
-                                  title="Edit beacon transmitter"
+                                  className="text-[10px] font-semibold text-zinc-600 hover:text-zinc-400 flex items-center gap-1.5 px-2 py-1.5 rounded border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-950/10 cursor-pointer"
                                 >
-                                  <ItemIcon id="beacon" size={32} />
-                                  <div className="factorio-badge text-cyan-400 font-bold bg-zinc-950/60 px-0.5 rounded leading-none border border-zinc-900/40">
-                                    {line.lineConfig.beaconCount}
-                                  </div>
+                                  <span>+ Add Modifiers</span>
                                 </button>
-
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-[11px] font-bold text-cyan-400">Beacon x{line.lineConfig.beaconCount}</span>
-                                  <div className="flex gap-1">
-                                    {line.lineConfig.beaconModules.map((modId, bIdx) => (
-                                      <div 
-                                        key={bIdx} 
-                                        className="w-5 h-5 bg-zinc-950 border border-cyan-950 rounded flex items-center justify-center shrink-0"
-                                        title={modules[modId]?.name}
-                                      >
-                                        <ItemIcon id={modId} size={14} />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  const existingIdx = activePage.lines.findIndex(l => l.id === line.lineConfig.id);
-                                  if (existingIdx !== -1) {
-                                    let updated = [...activePage.lines];
-                                    updated[existingIdx] = {
-                                      ...updated[existingIdx],
-                                      beaconCount: 8,
-                                      beaconId: 'beacon',
-                                      beaconModules: ['speed-module-3', 'speed-module-3']
-                                    };
-                                    handleUpdatePage({
-                                      ...activePage,
-                                      lines: updated
-                                    });
-                                  }
-                                  setActiveLineIdForConfig(line.lineConfig.id);
-                                }}
-                                className="text-[11px] font-semibold text-zinc-600 hover:text-zinc-400 flex items-center gap-1.5 px-3 py-2 rounded border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-950/10 cursor-pointer"
-                              >
-                                <span>+ Enable Beacon</span>
-                              </button>
-                            )}
+                              )}
+                            </div>
                           </td>
 
                           {/* Column 5: Output Rate */}
@@ -887,11 +866,11 @@ export default function App() {
                             <div className="flex justify-center">
                               <div 
                                 className="factorio-slot w-11 h-11 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
-                                title={`${items[stepTargetId]?.name || stepTargetId}: ${line.outputRate.toFixed(2)}`}
+                                title={`${items[stepTargetId]?.name || stepTargetId}: ${formatExactTooltip(line.outputRate)}`}
                               >
                                 <ItemIcon id={stepTargetId} size={32} />
                                 <div className="factorio-badge text-green-400 font-mono">
-                                  {formatQuantity(line.outputRate)}
+                                  {formatBadgeValue(line.outputRate)}
                                 </div>
                               </div>
                             </div>
@@ -911,11 +890,11 @@ export default function App() {
                                         <div 
                                           key={pIdx} 
                                           className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all" 
-                                          title={`${items[p.itemId]?.name || p.itemId}: ${byRate.toFixed(2)}`}
+                                          title={`${items[p.itemId]?.name || p.itemId}: ${formatExactTooltip(byRate)}`}
                                         >
                                           <ItemIcon id={p.itemId} size={32} />
                                           <div className="factorio-badge text-green-400 font-mono">
-                                            {formatQuantity(byRate)}
+                                            {formatBadgeValue(byRate)}
                                           </div>
                                         </div>
                                       );
@@ -938,11 +917,11 @@ export default function App() {
                                   <div 
                                     key={ing.itemId} 
                                     className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all"
-                                    title={`${items[ing.itemId]?.name || ing.itemId}: ${ingRateForUnit.toFixed(2)}`}
+                                    title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(ingRateForUnit)}`}
                                   >
                                     <ItemIcon id={ing.itemId} size={32} />
                                     <div className="factorio-badge text-xs font-mono">
-                                      {formatQuantity(ingRateForUnit)}
+                                      {formatBadgeValue(ingRateForUnit)}
                                     </div>
                                   </div>
                                 );
@@ -1023,9 +1002,7 @@ export default function App() {
             <MachineConfigModal
               recipeId={lineConfig.recipeId}
               initialMachineId={lineConfig.machineId}
-              initialModules={lineConfig.modules}
-              initialBeaconCount={lineConfig.beaconCount}
-              initialBeaconModules={lineConfig.beaconModules}
+              initialModifiers={lineConfig.modifiers || []}
               onClose={() => setActiveLineIdForConfig(null)}
               onSave={handleSaveMachineConfig}
               customDb={customDb}

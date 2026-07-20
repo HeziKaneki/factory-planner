@@ -1,4 +1,4 @@
-import { FactoryPage, FactoryPlannerLine } from '../types';
+import { FactoryPage } from '../types';
 
 export const DEFAULT_PAGES: FactoryPage[] = [
   {
@@ -14,93 +14,64 @@ export const DEFAULT_PAGES: FactoryPage[] = [
         id: 'line-utility-science-pack',
         recipeId: 'utility-science-pack',
         machineId: 'assembling-machine-3',
-        modules: [
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3'
+        modifiers: [
+          { id: 'productivity-module-3', count: 4 },
+          { id: 'speed-module-3', count: 8 }
         ],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
         enabled: true
       },
       {
         id: 'line-advanced-circuit',
         recipeId: 'advanced-circuit',
         machineId: 'assembling-machine-3',
-        modules: [
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3'
+        modifiers: [
+          { id: 'productivity-module-3', count: 4 },
+          { id: 'speed-module-3', count: 8 }
         ],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
         enabled: true
       },
       {
         id: 'line-electronic-circuit',
         recipeId: 'electronic-circuit',
         machineId: 'assembling-machine-3',
-        modules: [
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3'
+        modifiers: [
+          { id: 'productivity-module-3', count: 4 }
         ],
-        beaconId: null,
-        beaconCount: 0,
-        beaconModules: [],
         enabled: true
       },
       {
         id: 'line-copper-cable',
         recipeId: 'copper-cable',
         machineId: 'assembling-machine-3',
-        modules: [
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3',
-          'productivity-module-3'
+        modifiers: [
+          { id: 'productivity-module-3', count: 4 }
         ],
-        beaconId: null,
-        beaconCount: 0,
-        beaconModules: [],
         enabled: true
       },
       {
         id: 'line-steel-plate',
         recipeId: 'steel-plate',
         machineId: 'electric-furnace',
-        modules: [
-          'productivity-module-3',
-          'productivity-module-3'
+        modifiers: [
+          { id: 'productivity-module-3', count: 2 },
+          { id: 'speed-module-3', count: 8 }
         ],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
         enabled: true
       },
       {
         id: 'line-stone-brick',
         recipeId: 'stone-brick',
         machineId: 'electric-furnace',
-        modules: [],
-        beaconId: null,
-        beaconCount: 0,
-        beaconModules: [],
+        modifiers: [],
         enabled: true
       },
       {
         id: 'line-iron-ore',
         recipeId: 'iron-ore',
         machineId: 'electric-mining-drill',
-        modules: [],
-        beaconId: 'beacon',
-        beaconCount: 2,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
+        modifiers: [
+          { id: 'speed-module-3', count: 2 }
+        ],
         enabled: true
       }
     ]
@@ -118,20 +89,20 @@ export const DEFAULT_PAGES: FactoryPage[] = [
         id: 'line-steel-plate-smelt',
         recipeId: 'steel-plate',
         machineId: 'electric-furnace',
-        modules: ['productivity-module-3', 'productivity-module-3'],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
+        modifiers: [
+          { id: 'productivity-module-3', count: 2 },
+          { id: 'speed-module-3', count: 8 }
+        ],
         enabled: true
       },
       {
         id: 'line-iron-plate-smelt',
         recipeId: 'iron-plate',
         machineId: 'electric-furnace',
-        modules: ['productivity-module-3', 'productivity-module-3'],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
+        modifiers: [
+          { id: 'productivity-module-3', count: 2 },
+          { id: 'speed-module-3', count: 8 }
+        ],
         enabled: true
       }
     ]
@@ -149,30 +120,30 @@ export const DEFAULT_PAGES: FactoryPage[] = [
         id: 'line-advanced-circ',
         recipeId: 'advanced-circuit',
         machineId: 'assembling-machine-3',
-        modules: ['productivity-module-3', 'productivity-module-3', 'productivity-module-3', 'productivity-module-3'],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
+        modifiers: [
+          { id: 'productivity-module-3', count: 4 },
+          { id: 'speed-module-3', count: 8 }
+        ],
         enabled: true
       },
       {
         id: 'line-elec-circ',
         recipeId: 'electronic-circuit',
         machineId: 'assembling-machine-3',
-        modules: ['productivity-module-3', 'productivity-module-3', 'productivity-module-3', 'productivity-module-3'],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
+        modifiers: [
+          { id: 'productivity-module-3', count: 4 },
+          { id: 'speed-module-3', count: 8 }
+        ],
         enabled: true
       },
       {
         id: 'line-cop-cable',
         recipeId: 'copper-cable',
         machineId: 'assembling-machine-3',
-        modules: ['productivity-module-3', 'productivity-module-3', 'productivity-module-3', 'productivity-module-3'],
-        beaconId: 'beacon',
-        beaconCount: 8,
-        beaconModules: ['speed-module-3', 'speed-module-3'],
+        modifiers: [
+          { id: 'productivity-module-3', count: 4 },
+          { id: 'speed-module-3', count: 8 }
+        ],
         enabled: true
       }
     ]

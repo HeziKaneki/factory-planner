@@ -37,16 +37,19 @@ export interface Module {
   energyBonus: number; // e.g. 0.80 = +80%
   color: string; // slate, yellow, red, blue
   bgBorderColor: string;
+  category?: string;
+}
+
+export interface LineModifier {
+  id: string;
+  count: number;
 }
 
 export interface FactoryPlannerLine {
   id: string;
   recipeId: string;
   machineId: string;
-  modules: string[]; // list of module IDs (length <= machine.slots)
-  beaconId: string | null;
-  beaconCount: number;
-  beaconModules: string[]; // modules in the beacon
+  modifiers: LineModifier[]; // list of applied modifiers
   enabled: boolean;
   isCustomMachine?: boolean;
   targetItemId?: string;
@@ -66,6 +69,9 @@ export interface FactoryPage {
 
 export interface CustomDb {
   game_name: string;
+  categories?: Record<string, string>;
+  machine_categories?: Record<string, string>;
+  modifier_categories?: Record<string, string>;
   items: Record<string, { name: string; category?: string }>;
   machines: Record<string, { name: string; crafting_speed: number; slots?: number; energy?: number; category?: string }>;
   recipes: Record<string, {
@@ -75,6 +81,6 @@ export interface CustomDb {
     products: { itemId: string; amount: number }[];
     category?: string;
   }>;
-  modifiers: Record<string, { name: string; speed_bonus: number; productivity_bonus: number; energy_bonus: number }>;
+  modifiers: Record<string, { name: string; speed_bonus: number; productivity_bonus: number; energy_bonus: number; category?: string }>;
 }
 
