@@ -115,7 +115,7 @@ export function normalizeDatabase(customDb: any) {
 }
 
 // Default line configs if not explicitly created by user
-export function createDefaultLine(recipeId: string, customDb?: any): FactoryPlannerLine {
+export function createDefaultLine(recipeId: string, customDb?: any, targetItemId?: string): FactoryPlannerLine {
   const { recipes, machines } = normalizeDatabase(customDb);
   const recipe = recipes[recipeId];
   let machineId = 'assembling-machine-3';
@@ -149,7 +149,8 @@ export function createDefaultLine(recipeId: string, customDb?: any): FactoryPlan
     beaconId: null,
     beaconCount: 0,
     beaconModules: [],
-    enabled: true
+    enabled: true,
+    targetItemId
   };
 }
 
@@ -189,7 +190,7 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
     const recipe = recipes[recipeId];
     if (!recipe) return;
 
-    const primaryProductId = recipe.products?.[0]?.itemId || recipe.id;
+    const primaryProductId = lineConfig.targetItemId || recipe.products?.[0]?.itemId || recipe.id;
 
     // Get current demand and supply of primary product
     const currentDemand = demands.get(primaryProductId) || 0;
@@ -238,7 +239,8 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
 
     // If the line is enabled and there is net demand, calculate crafts and add to pools
     if (lineConfig.enabled && netDemand > 0.0001) {
-      const baseYield = recipe.products?.[0]?.amount || recipe.yield || 1;
+      const targetProduct = recipe.products?.find(p => p.itemId === primaryProductId) || recipe.products?.[0] || null;
+      const baseYield = targetProduct ? targetProduct.amount : (recipe.yield || 1);
       const actualYield = baseYield * (1 + productivityBonus);
       craftsPerSec = netDemand / actualYield;
       machineCount = (craftsPerSec * recipe.time) / actualSpeed;
@@ -260,8 +262,8 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
     }
 
     // Visual output rate of primary product for this step
-    const primaryProduct = recipe.products ? recipe.products[0] : null;
-    const primaryYield = primaryProduct ? primaryProduct.amount : (recipe.yield || 1);
+    const targetProduct = recipe.products?.find(p => p.itemId === primaryProductId) || recipe.products?.[0] || null;
+    const primaryYield = targetProduct ? targetProduct.amount : (recipe.yield || 1);
     const primaryOutputPerSec = craftsPerSec * primaryYield * (1 + productivityBonus);
     outputRate = page.rateUnit === 'second' ? primaryOutputPerSec : primaryOutputPerSec * 60;
 

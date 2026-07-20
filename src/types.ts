@@ -49,6 +49,7 @@ export interface FactoryPlannerLine {
   beaconModules: string[]; // modules in the beacon
   enabled: boolean;
   isCustomMachine?: boolean;
+  targetItemId?: string;
 }
 
 export interface FactoryPage {

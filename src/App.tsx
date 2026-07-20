@@ -115,9 +115,9 @@ export default function App() {
     return list;
   }, [selectedIngredientId, recipes]);
 
-  const handleAddRecipeStep = (recipeId: string) => {
+  const handleAddRecipeStep = (recipeId: string, targetItemId?: string) => {
     if (!activePage) return;
-    const defaultLine = createDefaultLine(recipeId, customDb);
+    const defaultLine = createDefaultLine(recipeId, customDb, targetItemId);
     defaultLine.id = `line-${Date.now()}-${Math.random()}`;
     defaultLine.enabled = true;
     
@@ -181,10 +181,10 @@ export default function App() {
     });
   };
 
-  const handleToggleLineEnabled = (recipeId: string) => {
+  const handleToggleLineEnabled = (lineId: string) => {
     if (!activePage) return;
     
-    const existingIndex = activePage.lines.findIndex(l => l.recipeId === recipeId);
+    const existingIndex = activePage.lines.findIndex(l => l.id === lineId);
     let newLines = [...activePage.lines];
 
     if (existingIndex !== -1) {
@@ -192,10 +192,6 @@ export default function App() {
         ...newLines[existingIndex],
         enabled: !newLines[existingIndex].enabled
       };
-    } else {
-      const defaultLine = createDefaultLine(recipeId, customDb);
-      defaultLine.enabled = false;
-      newLines.push(defaultLine);
     }
 
     handleUpdatePage({
@@ -222,11 +218,11 @@ export default function App() {
     });
   };
 
-  const handleRemoveLine = (recipeId: string) => {
+  const handleRemoveLine = (lineId: string) => {
     if (!activePage) return;
     handleUpdatePage({
       ...activePage,
-      lines: activePage.lines.filter(l => l.recipeId !== recipeId)
+      lines: activePage.lines.filter(l => l.id !== lineId)
     });
   };
 
@@ -239,7 +235,7 @@ export default function App() {
   }) => {
     if (!activePage || !activeLineIdForConfig) return;
 
-    const existingIdx = activePage.lines.findIndex(l => l.recipeId === activeLineIdForConfig);
+    const existingIdx = activePage.lines.findIndex(l => l.id === activeLineIdForConfig);
     let updatedLines = [...activePage.lines];
 
     if (existingIdx !== -1) {
@@ -247,13 +243,6 @@ export default function App() {
         ...updatedLines[existingIdx],
         ...config
       };
-    } else {
-      updatedLines.push({
-        id: `line-${activeLineIdForConfig}`,
-        recipeId: activeLineIdForConfig,
-        enabled: true,
-        ...config
-      });
     }
 
     handleUpdatePage({
@@ -723,15 +712,15 @@ export default function App() {
                       const recipe = recipes[line.recipeId];
                       if (!recipe) return null;
                       
-                      const lineOutputRate = line.outputRate;
+                      const stepTargetId = line.lineConfig.targetItemId || recipe.products?.[0]?.itemId || line.recipeId;
 
                       return (
                         <tr 
-                          key={line.recipeId} 
+                          key={line.lineConfig.id} 
                           className={`transition-colors text-xs ${
                             !line.enabled 
                               ? 'opacity-40 bg-zinc-950/30' 
-                              : line.recipeId === activePage.targetItemId 
+                              : stepTargetId === activePage.targetItemId 
                                 ? 'bg-amber-950/5 hover:bg-amber-950/10' 
                                 : 'hover:bg-zinc-900/30'
                           }`}
@@ -764,14 +753,14 @@ export default function App() {
                               <input
                                 type="checkbox"
                                 checked={line.enabled}
-                                onChange={() => handleToggleLineEnabled(line.recipeId)}
+                                onChange={() => handleToggleLineEnabled(line.lineConfig.id)}
                                 className="w-4 h-4 accent-[#e58e26] border-zinc-800 rounded bg-zinc-950 cursor-pointer"
                                 title={line.enabled ? 'Click to disable' : 'Click to enable'}
                               />
 
                               {/* Remove step button */}
                               <button
-                                onClick={() => handleRemoveLine(line.recipeId)}
+                                onClick={() => handleRemoveLine(line.lineConfig.id)}
                                 className="text-zinc-600 hover:text-red-500 hover:scale-110 transition-transform cursor-pointer ml-1"
                                 title="Remove step"
                               >
@@ -785,9 +774,9 @@ export default function App() {
                             <div className="flex justify-center">
                               <div 
                                 className={`factorio-slot w-11 h-11 cursor-default ${
-                                  line.recipeId === activePage.targetItemId ? 'border-amber-500 bg-[#e58e26]/5' : ''
+                                  stepTargetId === activePage.targetItemId ? 'border-amber-500 bg-[#e58e26]/5' : ''
                                   }`}
-                                title={recipe.name}
+                                title={`${recipe.name} (producing ${items[stepTargetId]?.name || stepTargetId})`}
                               >
                                 <ItemIcon id={line.recipeId} size={32} />
                               </div>
@@ -798,7 +787,7 @@ export default function App() {
                           <td className="px-4 py-3.5 border-r border-zinc-950">
                             <div className="flex items-center gap-3">
                               <button
-                                onClick={() => setActiveLineIdForConfig(line.recipeId)}
+                                onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
                                 className="factorio-slot w-11 h-11 shrink-0 relative group hover:border-[#e58e26] cursor-pointer"
                                 title="Click to config machine & modules"
                               >
@@ -826,7 +815,7 @@ export default function App() {
                                     ))
                                   ) : (
                                     <button
-                                      onClick={() => setActiveLineIdForConfig(line.recipeId)}
+                                      onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
                                       className="text-[10px] text-zinc-500 hover:text-zinc-300 font-semibold uppercase flex items-center gap-0.5 cursor-pointer"
                                     >
                                       <span>+ Modules</span>
@@ -842,7 +831,7 @@ export default function App() {
                             {line.lineConfig.beaconCount > 0 ? (
                               <div className="flex items-center gap-3 text-left">
                                 <button
-                                  onClick={() => setActiveLineIdForConfig(line.recipeId)}
+                                  onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
                                   className="factorio-slot w-11 h-11 shrink-0 relative group hover:border-cyan-500 cursor-pointer"
                                   title="Edit beacon transmitter"
                                 >
@@ -870,18 +859,21 @@ export default function App() {
                             ) : (
                               <button
                                 onClick={() => {
-                                  const existingIdx = activePage.lines.findIndex(l => l.recipeId === line.recipeId);
-                                  if (existingIdx === -1) {
-                                    const defaultLine = createDefaultLine(line.recipeId, customDb);
-                                    defaultLine.beaconCount = 8;
-                                    defaultLine.beaconId = 'beacon';
-                                    defaultLine.beaconModules = ['speed-module-3', 'speed-module-3'];
+                                  const existingIdx = activePage.lines.findIndex(l => l.id === line.lineConfig.id);
+                                  if (existingIdx !== -1) {
+                                    let updated = [...activePage.lines];
+                                    updated[existingIdx] = {
+                                      ...updated[existingIdx],
+                                      beaconCount: 8,
+                                      beaconId: 'beacon',
+                                      beaconModules: ['speed-module-3', 'speed-module-3']
+                                    };
                                     handleUpdatePage({
                                       ...activePage,
-                                      lines: [...activePage.lines, defaultLine]
+                                      lines: updated
                                     });
                                   }
-                                  setActiveLineIdForConfig(line.recipeId);
+                                  setActiveLineIdForConfig(line.lineConfig.id);
                                 }}
                                 className="text-[11px] font-semibold text-zinc-600 hover:text-zinc-400 flex items-center gap-1.5 px-3 py-2 rounded border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-950/10 cursor-pointer"
                               >
@@ -890,57 +882,55 @@ export default function App() {
                             )}
                           </td>
 
-                          {/* Column 5: Products Out Rate */}
+                          {/* Column 5: Output Rate */}
                           <td className="px-3 py-3.5 border-r border-zinc-950 text-center">
-                            <div className="flex flex-col items-center gap-1.5 justify-center">
-                              {(recipe.products || [{ itemId: line.recipeId, amount: 1 }]).map((p, pIdx) => {
-                                const prodRate = lineOutputRate * (p.amount / (recipe.products?.[0]?.amount || 1));
-                                return (
-                                  <div 
-                                    key={pIdx} 
-                                    className="factorio-slot w-12 h-12 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
-                                    title={`${items[p.itemId]?.name || p.itemId}: ${prodRate.toFixed(2)}`}
-                                  >
-                                    <ItemIcon id={p.itemId} size={36} />
-                                    <div className="factorio-badge text-green-400 border border-zinc-800 bg-zinc-950/85 leading-none">
-                                      {formatQuantity(prodRate)}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                            <div className="flex justify-center">
+                              <div 
+                                className="factorio-slot w-11 h-11 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
+                                title={`${items[stepTargetId]?.name || stepTargetId}: ${line.outputRate.toFixed(2)}`}
+                              >
+                                <ItemIcon id={stepTargetId} size={32} />
+                                <div className="factorio-badge text-green-400 font-mono">
+                                  {formatQuantity(line.outputRate)}
+                                </div>
+                              </div>
                             </div>
                           </td>
 
                           {/* Column 6: Byproducts Out Rate */}
                           <td className="px-3 py-3.5 border-r border-zinc-950 text-center">
-                            <div className="flex justify-center font-mono text-[10px] text-zinc-600">
-                              {recipe.products && recipe.products.length > 1 ? (
-                                <div className="flex flex-wrap gap-1.5 justify-center">
-                                  {recipe.products.slice(1).map((p, pIdx) => {
-                                    const byRate = lineOutputRate * (p.amount / recipe.products[0].amount);
-                                    return (
-                                      <div 
-                                        key={pIdx} 
-                                        className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all" 
-                                        title={`${items[p.itemId]?.name || p.itemId}: ${byRate.toFixed(2)}`}
-                                      >
-                                        <ItemIcon id={p.itemId} size={32} />
-                                        <div className="factorio-badge text-green-400 font-mono">
-                                          {formatQuantity(byRate)}
+                            <div className="flex justify-center">
+                              {(() => {
+                                const lineByproducts = recipe.products ? recipe.products.filter(p => p.itemId !== stepTargetId) : [];
+                                return lineByproducts.length > 0 ? (
+                                  <div className="flex flex-row overflow-x-auto max-w-[150px] pb-1 gap-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                                    {lineByproducts.map((p, pIdx) => {
+                                      const primaryProductYield = recipe.products?.find(pr => pr.itemId === stepTargetId)?.amount || recipe.products?.[0]?.amount || 1;
+                                      const byRate = line.outputRate * (p.amount / primaryProductYield);
+                                      return (
+                                        <div 
+                                          key={pIdx} 
+                                          className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all" 
+                                          title={`${items[p.itemId]?.name || p.itemId}: ${byRate.toFixed(2)}`}
+                                        >
+                                          <ItemIcon id={p.itemId} size={32} />
+                                          <div className="factorio-badge text-green-400 font-mono">
+                                            {formatQuantity(byRate)}
+                                          </div>
                                         </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                '-'
-                              )}
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-zinc-600 text-[10px] uppercase font-bold tracking-wider">-</span>
+                                );
+                              })()}
                             </div>
                           </td>
 
                           {/* Column 7: Step Ingredients Requirements */}
                           <td className="px-4 py-3.5 text-left">
-                            <div className="flex flex-wrap gap-2.5">
+                            <div className="flex flex-row overflow-x-auto max-w-[350px] pb-1 gap-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent justify-start">
                               {line.ingredients.map(ing => {
                                 const ingRateForUnit = ing.rate;
 
@@ -959,7 +949,7 @@ export default function App() {
                               })}
                               
                               {line.ingredients.length === 0 && (
-                                <span className="text-zinc-600 text-[11px] italic py-1">
+                                <span className="text-zinc-600 text-[11px] italic py-2">
                                   Direct raw mining / input
                                 </span>
                               )}
@@ -1027,10 +1017,11 @@ export default function App() {
       {/* B. STEP CONFIGURATION MODAL (MACHINE & MODULE CONFIG) */}
       {activeLineIdForConfig && activePage && (
         (() => {
-          const lineConfig = activePage.lines.find(l => l.recipeId === activeLineIdForConfig) || createDefaultLine(activeLineIdForConfig, customDb);
+          const lineConfig = activePage.lines.find(l => l.id === activeLineIdForConfig);
+          if (!lineConfig) return null;
           return (
             <MachineConfigModal
-              recipeId={activeLineIdForConfig}
+              recipeId={lineConfig.recipeId}
               initialMachineId={lineConfig.machineId}
               initialModules={lineConfig.modules}
               initialBeaconCount={lineConfig.beaconCount}
@@ -1275,7 +1266,7 @@ export default function App() {
                       {/* Right: Select Button */}
                       <div className="shrink-0">
                         <button
-                          onClick={() => handleAddRecipeStep(recipe.id)}
+                          onClick={() => handleAddRecipeStep(recipe.id, selectedIngredientId || undefined)}
                           className="factorio-btn-orange w-full md:w-auto px-4 py-2 text-xs font-bold uppercase tracking-wider cursor-pointer"
                         >
                           Select Recipe

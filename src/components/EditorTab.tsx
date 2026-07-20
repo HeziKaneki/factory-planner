@@ -137,16 +137,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
     
     const groups: Record<string, [string, any][]> = {};
     
-    // Default machine categories
-    const machineCategories: Record<string, string> = {
-      'assembling-machine': 'Assembling Machines',
-      'furnace': 'Furnaces',
-      'chemical-plant': 'Chemical Plants',
-      'miner': 'Mining Drills'
-    };
-    
     // Initialize groups with standard machine categories to preserve standard order
-    Object.keys(machineCategories).forEach(catKey => {
+    Object.keys(dbMachineCategories).forEach(catKey => {
       groups[catKey] = [];
     });
     
@@ -159,7 +151,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
     });
     
     return Object.entries(groups).filter(([_, items]) => items.length > 0);
-  }, [filteredEntries, activeSection]);
+  }, [filteredEntries, activeSection, dbMachineCategories]);
 
   // Load entry into form for editing
   const handleStartEdit = (id: string, val: any) => {
@@ -516,8 +508,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                                 className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
                                 onClick={() => handleStartEdit(id, val)}
                               >
-                                <div className="p-0.5 rounded bg-zinc-950/30 shrink-0">
-                                  <ItemIcon id={id} size={22} customUrl={val?.icon_url} />
+                                <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
+                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
                                 </div>
                                 <div className="truncate text-left">
                                   <div className="font-bold text-white">{displayName}</div>
@@ -622,8 +614,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                                 className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
                                 onClick={() => handleStartEdit(id, val)}
                               >
-                                <div className="p-0.5 rounded bg-zinc-950/30 shrink-0">
-                                  <ItemIcon id={id} size={22} customUrl={val?.icon_url} />
+                                <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
+                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
                                 </div>
                                 <div className="truncate text-left">
                                   <div className="font-bold text-white">{displayName}</div>
@@ -697,8 +689,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                     className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
                     onClick={() => handleStartEdit(id, val)}
                   >
-                    <div className="p-0.5 rounded bg-zinc-950/30 shrink-0">
-                      <ItemIcon id={id} size={22} customUrl={val?.icon_url} />
+                    <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
+                      <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
                     </div>
                     <div className="truncate text-left">
                       <div className="font-bold text-white">{displayName}</div>
@@ -759,17 +751,19 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
         {editingId ? (
           <div className="factorio-panel max-w-xl p-5 rounded space-y-5">
             <div className="flex items-center justify-between border-b border-zinc-950 pb-2.5">
-              <div className="flex items-center gap-2">
-                <ItemIcon 
-                  id={editingId === '_new_' ? 'generic' : editingId} 
-                  size={28} 
-                  customUrl={
-                    activeSection === 'items' ? itemIconUrl : 
-                    activeSection === 'recipes' ? recipeIconUrl : 
-                    activeSection === 'machines' ? machineIconUrl : 
-                    activeSection === 'modifiers' ? modifierIconUrl : undefined
-                  } 
-                />
+              <div className="flex items-center gap-3">
+                <div className="factorio-slot w-10 h-10 flex items-center justify-center bg-zinc-950 border border-zinc-900 rounded shadow-inner shrink-0">
+                  <ItemIcon 
+                    id={editingId === '_new_' ? 'generic' : editingId} 
+                    size={28} 
+                    customUrl={
+                      activeSection === 'items' ? itemIconUrl : 
+                      activeSection === 'recipes' ? recipeIconUrl : 
+                      activeSection === 'machines' ? machineIconUrl : 
+                      activeSection === 'modifiers' ? modifierIconUrl : undefined
+                    } 
+                  />
+                </div>
                 <h3 className="font-display font-bold text-base text-[#e58e26] uppercase tracking-wider">
                   {editingId === '_new_' ? 'Create New' : 'Update'}: {activeSection.replace(/s$/, '')}
                 </h3>
