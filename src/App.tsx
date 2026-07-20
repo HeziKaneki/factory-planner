@@ -56,6 +56,8 @@ export function formatBadgeValue(value: number): string {
 export default function App() {
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'planner' | 'editor' | 'database'>('planner');
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   
   const [customDb, setCustomDb] = useState(() => {
     const saved = localStorage.getItem('factory_planner_custom_db');
@@ -96,20 +98,60 @@ export default function App() {
     return pages.find(p => p.id === selectedPageId) || pages[0] || null;
   }, [pages, selectedPageId]);
 
-  // Save changes to local storage
+  // Load from server API on mount
   useEffect(() => {
+    async function loadFromServer() {
+      try {
+        const res = await fetch("/api/db");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.customDb) setCustomDb(data.customDb);
+          if (data.pages) setPages(data.pages);
+          if (data.selectedPageId) setSelectedPageId(data.selectedPageId);
+        }
+      } catch (err) {
+        console.error("Error loading state from server:", err);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+    loadFromServer();
+  }, []);
+
+  // Save changes to local storage & server API
+  useEffect(() => {
+    if (!isLoaded) return;
+
     localStorage.setItem('factory_planner_custom_db', JSON.stringify(customDb));
-  }, [customDb]);
-
-  useEffect(() => {
     localStorage.setItem('factory_planner_pages', JSON.stringify(pages));
-  }, [pages]);
-
-  useEffect(() => {
     if (selectedPageId) {
       localStorage.setItem('factory_planner_selected_id', selectedPageId);
     }
-  }, [selectedPageId]);
+
+    const saveToServer = async () => {
+      setSaveStatus('saving');
+      try {
+        const res = await fetch("/api/db", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ customDb, pages, selectedPageId })
+        });
+        if (res.ok) {
+          setSaveStatus('saved');
+        } else {
+          setSaveStatus('error');
+        }
+      } catch (err) {
+        console.error("Error saving state to server:", err);
+        setSaveStatus('error');
+      }
+    };
+
+    const timer = setTimeout(saveToServer, 500);
+    return () => clearTimeout(timer);
+  }, [customDb, pages, selectedPageId, isLoaded]);
 
   // --- SOLVER COMPUTATIONS ---
   const solverResult = useMemo(() => {
@@ -383,8 +425,29 @@ export default function App() {
           </div>
         </div>
 
-        <div className="font-mono text-[10px] text-zinc-500 font-bold bg-zinc-950 px-3 py-1 rounded border border-zinc-900 hidden sm:block">
-          ENGINE v4.2.0 // GAME: {customDb.game_name?.toUpperCase() || 'FACTORIO'}
+        <div className="flex items-center gap-3">
+          {saveStatus === 'saving' && (
+            <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-amber-500 font-mono" title="Saving changes directly to the server">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              Syncing...
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-500 font-mono" title="All changes saved to the server's db.json">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+              Synced to Server
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-red-500 font-mono" title="Unable to sync to server database">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+              Sync Error
+            </span>
+          )}
+
+          <div className="font-mono text-[10px] text-zinc-500 font-bold bg-zinc-950 px-3 py-1 rounded border border-zinc-900 hidden sm:block">
+            ENGINE v4.2.0 // GAME: {customDb.game_name?.toUpperCase() || 'FACTORIO'}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
