@@ -582,8 +582,13 @@ export default function App() {
                       return targets.map((t, idx, arr) => (
                         <div 
                           key={t.itemId + '-' + idx} 
-                          className="factorio-slot w-12 h-12 shrink-0 relative group"
-                          title={`${items[t.itemId]?.name || t.itemId} (Middle-click to remove)`}
+                          className="factorio-slot w-12 h-12 shrink-0 relative group cursor-pointer hover:border-[#e58e26] transition-all"
+                          title={`${items[t.itemId]?.name || t.itemId}: ${t.rate} /s (Left-click to change rate, Middle-click to remove)`}
+                          onClick={() => {
+                            setRateEditItemId(t.itemId);
+                            setPromptInputValue(t.rate.toString());
+                            setCustomPromptType('rate');
+                          }}
                           onAuxClick={(e) => {
                             if (e.button === 1) { // 1 is middle mouse button
                               e.preventDefault();
@@ -594,26 +599,21 @@ export default function App() {
                         >
                           <ItemIcon id={t.itemId} size={36} />
                           
-                          {/* Target rate edit button badge */}
-                          <button
-                            onClick={() => {
-                              setRateEditItemId(t.itemId);
-                              setPromptInputValue(t.rate.toString());
-                              setCustomPromptType('rate');
-                            }}
+                          {/* Target rate badge */}
+                          <div
                             className="factorio-badge text-green-400 border border-zinc-800 bg-zinc-950/85 hover:text-[#e58e26] leading-none"
-                            title="Click to change rate"
                           >
                             {formatQuantity(t.rate)}
-                          </button>
+                          </div>
 
                           {/* Delete Target button */}
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const updated = arr.filter((_, i) => i !== idx);
                               handleUpdatePage(updatePageTargets(activePage, updated));
                             }}
-                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold border border-zinc-950 shadow cursor-pointer"
+                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold border border-zinc-950 shadow cursor-pointer z-10"
                             title="Remove product"
                           >
                             ×
