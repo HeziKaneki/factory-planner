@@ -293,25 +293,56 @@ export default function App() {
     };
   };
 
-  const handleToggleRateUnit = () => {
+  const handleSetRateUnit = (nextUnit: 'second' | 'minute' | 'belt') => {
     if (!activePage) return;
-    const isMin = activePage.rateUnit === 'minute';
+    const currentUnit = activePage.rateUnit || 'minute';
+    if (currentUnit === nextUnit) return;
+
+    const oldBeltSpeed = activePage.beltSpeed || 15;
+    const newBeltSpeed = activePage.beltSpeed || 15;
+
     const targets = activePage.targetProducts || (activePage.targetItemId ? [{ itemId: activePage.targetItemId, rate: activePage.targetRate }] : []);
-    
+
     const updatedTargets = targets.map(t => {
-      const newRate = isMin ? t.rate / 60 : t.rate * 60;
+      // Convert to items/second first
+      let ratePerSec = 0;
+      if (currentUnit === 'second') {
+        ratePerSec = t.rate;
+      } else if (currentUnit === 'minute') {
+        ratePerSec = t.rate / 60;
+      } else if (currentUnit === 'belt') {
+        ratePerSec = t.rate * oldBeltSpeed;
+      }
+
+      // Convert from items/second to nextUnit
+      let finalRate = 0;
+      if (nextUnit === 'second') {
+        finalRate = ratePerSec;
+      } else if (nextUnit === 'minute') {
+        finalRate = ratePerSec * 60;
+      } else if (nextUnit === 'belt') {
+        finalRate = ratePerSec / newBeltSpeed;
+      }
+
       return {
         ...t,
-        rate: Math.round(newRate * 100) / 100
+        rate: Math.round(finalRate * 1000) / 1000
       };
     });
 
-    const nextUnit = isMin ? 'second' : 'minute';
     const updatedPage = updatePageTargets(activePage, updatedTargets);
 
     handleUpdatePage({
       ...updatedPage,
       rateUnit: nextUnit
+    });
+  };
+
+  const handleUpdateBeltSpeed = (speed: number) => {
+    if (!activePage) return;
+    handleUpdatePage({
+      ...activePage,
+      beltSpeed: speed
     });
   };
 
@@ -350,17 +381,26 @@ export default function App() {
     });
   };
 
-  const handleMoveLineOrder = (index: number, direction: 'up' | 'down') => {
+  const handleMoveLineOrder = (index: number, direction: 'up' | 'down', isShiftClick?: boolean) => {
     if (!activePage) return;
     if (index === 0 && direction === 'up') return;
     if (index === activePage.lines.length - 1 && direction === 'down') return;
 
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
     let updatedPageLines = [...activePage.lines];
     
-    const temp = updatedPageLines[index];
-    updatedPageLines[index] = updatedPageLines[targetIndex];
-    updatedPageLines[targetIndex] = temp;
+    if (isShiftClick) {
+      const element = updatedPageLines.splice(index, 1)[0];
+      if (direction === 'up') {
+        updatedPageLines.unshift(element);
+      } else {
+        updatedPageLines.push(element);
+      }
+    } else {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      const temp = updatedPageLines[index];
+      updatedPageLines[index] = updatedPageLines[targetIndex];
+      updatedPageLines[targetIndex] = temp;
+    }
 
     handleUpdatePage({
       ...activePage,
@@ -670,36 +710,78 @@ export default function App() {
               {/* WORKSPACE SUB HEADER TAB */}
               <div className="border-b border-zinc-950 bg-zinc-900/60 p-3 flex flex-wrap items-center justify-between gap-3 shadow-md relative z-10">
                 
-                {/* Active page item title */}
-                <div className="flex items-center gap-2 text-left">
-                  <div className="p-1 rounded bg-zinc-950 border border-zinc-800">
-                    <ItemIcon id={activePage.targetItemId} size={22} type="item" />
+                {/* Left Side: Title & Belt / rate controls */}
+                <div className="flex items-center gap-4 flex-wrap text-left">
+                  {/* Active page item title */}
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 rounded bg-zinc-950 border border-zinc-800">
+                      <ItemIcon id={activePage.targetItemId} size={22} type="item" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-white uppercase tracking-wide">
+                        {activePage.name}
+                      </h2>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-white uppercase tracking-wide">
-                      {activePage.name}
-                    </h2>
+
+                  {/* Rate switch */}
+                  <div className="flex items-center bg-zinc-950 p-1 rounded border border-zinc-800 text-xs font-bold gap-1">
+                    <button
+                      onClick={() => handleSetRateUnit('second')}
+                      className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                        activePage.rateUnit === 'second'
+                          ? 'bg-[#e58e26] text-zinc-950 font-bold shadow'
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      /sec
+                    </button>
+                    <button
+                      onClick={() => handleSetRateUnit('minute')}
+                      className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                        activePage.rateUnit === 'minute'
+                          ? 'bg-[#e58e26] text-zinc-950 font-bold shadow'
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      /min
+                    </button>
+                    <button
+                      onClick={() => handleSetRateUnit('belt')}
+                      className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                        activePage.rateUnit === 'belt'
+                          ? 'bg-[#e58e26] text-zinc-950 font-bold shadow'
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      belt
+                    </button>
                   </div>
+
+                  {/* Belt speed input (shown only when 'belt' is selected) */}
+                  {activePage.rateUnit === 'belt' && (
+                    <div className="flex items-center bg-zinc-950 px-2 py-1 rounded border border-zinc-800 text-xs font-bold gap-1.5">
+                      <span className="text-zinc-400 uppercase text-[10px] tracking-wider">Belt Speed:</span>
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="any"
+                        value={activePage.beltSpeed || 15}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val) && val > 0) {
+                            handleUpdateBeltSpeed(val);
+                          }
+                        }}
+                        className="w-14 bg-zinc-900 border border-zinc-700 rounded px-1 text-center text-white text-xs font-mono font-bold focus:border-[#e58e26] focus:outline-none"
+                      />
+                      <span className="text-zinc-500 text-[10px]">items/s</span>
+                    </div>
+                  )}
                 </div>
 
-                {/* View toggles & units */}
+                {/* Right Side: Solver mode switch */}
                 <div className="flex items-center gap-4 flex-wrap">
-                  {/* Rate switch */}
-                  <div className="flex items-center bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800 text-xs font-bold gap-3">
-                    <span className={activePage.rateUnit === 'second' ? 'text-[#e58e26]' : 'text-zinc-500'}>/sec</span>
-                    <button
-                      onClick={handleToggleRateUnit}
-                      className="w-8 h-4 rounded-full bg-zinc-800 relative transition-colors duration-100 border border-zinc-950 cursor-pointer"
-                    >
-                      <div 
-                        className={`w-3.5 h-3.5 rounded-full bg-[#e58e26] absolute top-px transition-all duration-100 ${
-                          activePage.rateUnit === 'minute' ? 'left-4' : 'left-px'
-                        }`}
-                      ></div>
-                    </button>
-                    <span className={activePage.rateUnit === 'minute' ? 'text-[#e58e26]' : 'text-zinc-500'}>/min</span>
-                  </div>
-
                   {/* Solver mode switch */}
                   <div className="flex items-center bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800 text-xs font-bold gap-2">
                     <span className="text-zinc-400 uppercase text-[10px] tracking-wider">Solver:</span>
@@ -742,7 +824,7 @@ export default function App() {
                         <div 
                           key={t.itemId + '-' + idx} 
                           className="factorio-slot w-12 h-12 shrink-0 relative group cursor-pointer hover:border-[#e58e26] transition-all"
-                          title={`${items[t.itemId]?.name || t.itemId}: ${formatExactTooltip(t.rate)} /s (Left-click to change rate, Middle-click to remove)`}
+                          title={`${items[t.itemId]?.name || t.itemId}: ${formatExactTooltip(t.rate)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'} (Left-click to change rate, Middle-click to remove)`}
                           onClick={() => {
                             setRateEditItemId(t.itemId);
                             setPromptInputValue(t.rate.toString());
@@ -902,18 +984,18 @@ export default function App() {
                               {/* Sorting arrows */}
                               <div className="flex flex-col gap-0.5 shrink-0">
                                 <button
-                                  onClick={() => handleMoveLineOrder(index, 'up')}
+                                  onClick={(e) => handleMoveLineOrder(index, 'up', e.shiftKey)}
                                   disabled={index === 0}
                                   className="text-zinc-600 hover:text-white disabled:opacity-20 hover:scale-110 transition-transform cursor-pointer"
-                                  title="Move up"
+                                  title="Move up (Shift+Click to move to top)"
                                 >
                                   <ArrowUp size={12} />
                                 </button>
                                 <button
-                                  onClick={() => handleMoveLineOrder(index, 'down')}
+                                  onClick={(e) => handleMoveLineOrder(index, 'down', e.shiftKey)}
                                   disabled={index === solverResult.lines.length - 1}
                                   className="text-zinc-600 hover:text-white disabled:opacity-20 hover:scale-110 transition-transform cursor-pointer"
-                                  title="Move down"
+                                  title="Move down (Shift+Click to move to bottom)"
                                 >
                                   <ArrowDown size={12} />
                                 </button>
@@ -1246,7 +1328,7 @@ export default function App() {
                     Change Required Production Rate
                   </h3>
                   <div className="space-y-1.5 text-left">
-                    <label className="text-xs text-zinc-400 font-bold uppercase">Desired production rate (per {activePage?.rateUnit === 'minute' ? 'minute' : 'second'}):</label>
+                    <label className="text-xs text-zinc-400 font-bold uppercase">Desired production rate (in {activePage?.rateUnit === 'minute' ? 'items/minute' : activePage?.rateUnit === 'second' ? 'items/second' : 'belts'}):</label>
                     <input
                       type="number"
                       value={promptInputValue}

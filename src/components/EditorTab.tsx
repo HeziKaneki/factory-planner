@@ -61,6 +61,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
 
   const [catId, setCatId] = useState('');
   const [catName, setCatName] = useState('');
+  const [catDefaultMachineId, setCatDefaultMachineId] = useState('');
 
   // Available item list for selection in recipes
   const allItemsList = useMemo(() => {
@@ -248,6 +249,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
     } else if (activeSection === 'categories') {
       setCatId(id);
       setCatName(typeof val === 'string' ? val : (val.name || ''));
+      setCatDefaultMachineId(typeof val === 'object' ? (val.defaultMachineId || '') : '');
     }
   };
 
@@ -283,6 +285,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
     } else if (activeSection === 'categories') {
       setCatId('');
       setCatName('');
+      setCatDefaultMachineId('');
     }
   };
 
@@ -362,6 +365,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
             'miner': 'Mining Drills'
           };
         }
+        valToSave = {
+          name: catName,
+          defaultMachineId: catDefaultMachineId || undefined
+        };
         updatedDb.machine_categories = { ...updatedDb.machine_categories, [idToSave]: valToSave };
       } else if (categorySubTab === 'modifiers') {
         if (!updatedDb.modifier_categories) {
@@ -1119,26 +1126,15 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-zinc-400 font-bold uppercase block">Base Speed Multiplier:</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={machineSpeed}
-                      onChange={(e) => setMachineSpeed(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono font-bold"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-zinc-400 font-bold uppercase block">Module Slots:</label>
-                    <input
-                      type="number"
-                      value={machineSlots}
-                      onChange={(e) => setMachineSlots(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono font-bold"
-                    />
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] text-zinc-400 font-bold uppercase block">Base Speed Multiplier:</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={machineSpeed}
+                    onChange={(e) => setMachineSpeed(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-mono font-bold"
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -1508,6 +1504,28 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                     />
                   </div>
                 </div>
+                {categorySubTab === 'machines' && (
+                  <div className="space-y-1 pt-2">
+                    <label className="text-[11px] text-zinc-400 font-bold uppercase block">Default Machine for this Category:</label>
+                    <select
+                      value={catDefaultMachineId}
+                      onChange={(e) => setCatDefaultMachineId(e.target.value)}
+                      className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-semibold"
+                    >
+                      <option value="">No Machine (specs = 0)</option>
+                      {Object.entries(customDb.machines || {})
+                        .filter(([_, m]: [string, any]) => m.category === catId)
+                        .map(([id, m]: [string, any]) => (
+                          <option key={id} value={id}>
+                            {m.name || id} (Speed: {m.crafting_speed || m.speed || 1.0})
+                          </option>
+                        ))}
+                    </select>
+                    <span className="text-[10px] text-zinc-500 italic block mt-1 leading-normal">
+                      If not set, steps using recipes under this category will default to a "No Machine" fallback with speed, slots, and power set to 0.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

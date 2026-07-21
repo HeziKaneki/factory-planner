@@ -61,7 +61,8 @@ export interface FactoryPage {
   targetItemId: string; // fallback / single target
   targetRate: number; // fallback / single target rate
   targetProducts?: { itemId: string; rate: number }[]; // dynamic multiple target products
-  rateUnit: 'second' | 'minute';
+  rateUnit: 'second' | 'minute' | 'belt';
+  beltSpeed?: number; // belt transport speed (items/second) - defaults to 15
   lines: FactoryPlannerLine[];
   solverMode: 'traditional' | 'matrix';
   itemsViewMode: 'items-m' | 'items-s'; // Items/m or Items/s
@@ -70,7 +71,7 @@ export interface FactoryPage {
 export interface CustomDb {
   game_name: string;
   categories?: Record<string, string>;
-  machine_categories?: Record<string, string>;
+  machine_categories?: Record<string, string | { name: string; defaultMachineId?: string }>;
   modifier_categories?: Record<string, string>;
   items: Record<string, { name: string; category?: string }>;
   machines: Record<string, { name: string; crafting_speed: number; slots?: number; energy?: number; category?: string }>;

@@ -44,6 +44,26 @@ export function normalizeDatabase(customDb: any) {
     });
   }
 
+  // Ensure virtual "No Machine" is generated for all categories
+  const machineCats = customDb.machine_categories || {
+    'assembling-machine': 'Assembling Machines',
+    'furnace': 'Furnaces',
+    'chemical-plant': 'Chemical Plants',
+    'miner': 'Mining Drills'
+  };
+
+  Object.entries(machineCats).forEach(([catId, catVal]: [string, any]) => {
+    const catName = typeof catVal === 'object' ? catVal.name : catVal;
+    machines[`no-machine-${catId}`] = {
+      id: `no-machine-${catId}`,
+      name: `No Machine (${catName})`,
+      speed: 0,
+      slots: 0,
+      energy: 0,
+      category: catId as any
+    };
+  });
+
   if (customDb.machines) {
     Object.entries(customDb.machines).forEach(([id, val]: [string, any]) => {
       machines[id] = {
@@ -101,31 +121,44 @@ export function normalizeDatabase(customDb: any) {
 export function createDefaultLine(recipeId: string, customDb?: any, targetItemId?: string): FactoryPlannerLine {
   const { recipes, machines } = normalizeDatabase(customDb);
   const recipe = recipes[recipeId];
-  let machineId = 'assembling-machine-3';
+  const catId = recipe?.category || 'assembling-machine';
+  
+  let defaultMachineId = `no-machine-${catId}`;
 
-  if (recipe) {
-    const compatible = Object.values(machines).find(m => m.category === recipe.category);
-    if (compatible) {
-      machineId = compatible.id;
-    } else {
-      if (recipe.category === 'furnace') {
-        machineId = 'electric-furnace';
-      } else if (recipe.category === 'chemical-plant') {
-        machineId = 'chemical-plant';
-      } else if (recipe.category === 'miner') {
-        machineId = 'electric-mining-drill';
+  if (customDb && customDb.machine_categories && customDb.machine_categories[catId]) {
+    const catVal = customDb.machine_categories[catId];
+    if (typeof catVal === 'object' && catVal.defaultMachineId) {
+      if (machines[catVal.defaultMachineId]) {
+        defaultMachineId = catVal.defaultMachineId;
       }
+    }
+  } else {
+    // Fallbacks if categories are not fully defined as objects yet
+    if (catId === 'furnace') {
+      defaultMachineId = 'electric-furnace';
+    } else if (catId === 'chemical-plant') {
+      defaultMachineId = 'chemical-plant';
+    } else if (catId === 'miner') {
+      defaultMachineId = 'electric-mining-drill';
+    } else {
+      defaultMachineId = 'assembling-machine-3';
     }
   }
 
+  let machineId = defaultMachineId;
+
   // Safe fallback if target machine id is missing
   if (!machines[machineId]) {
-    const firstMachineId = Object.keys(machines)[0];
-    if (firstMachineId) machineId = firstMachineId;
+    const compatible = Object.values(machines).find(m => m.category === catId && m.id !== `no-machine-${catId}`);
+    if (compatible) {
+      machineId = compatible.id;
+    } else {
+      machineId = `no-machine-${catId}`;
+    }
   }
 
   return {
-    id: `line-${recipeId}`,
+    id: `line-${recipeId}-${Date.now()}-${Math.random()}`,
     recipeId,
     machineId,
     modifiers: [],
@@ -136,6 +169,12 @@ export function createDefaultLine(recipeId: string, customDb?: any, targetItemId
 
 export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResult {
   const { items, recipes, machines, modules } = normalizeDatabase(customDb);
+  const bSpeed = page.beltSpeed || 15;
+  const convertPerSecToUnit = (ratePerSec: number) => {
+    if (page.rateUnit === 'second') return ratePerSec;
+    if (page.rateUnit === 'minute') return ratePerSec * 60;
+    return ratePerSec / bSpeed; // 'belt'
+  };
 
   // 1. Index current lines for easy lookup
   const linesMap = new Map<string, FactoryPlannerLine>();
@@ -158,7 +197,15 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
   // Initialize demands with target products
   const targets = page.targetProducts ? page.targetProducts : (page.targetItemId ? [{ itemId: page.targetItemId, rate: page.targetRate }] : []);
   targets.forEach(t => {
-    const ratePerSec = page.rateUnit === 'second' ? t.rate : t.rate / 60;
+    let ratePerSec = 0;
+    if (page.rateUnit === 'second') {
+      ratePerSec = t.rate;
+    } else if (page.rateUnit === 'minute') {
+      ratePerSec = t.rate / 60;
+    } else if (page.rateUnit === 'belt') {
+      const bSpeed = page.beltSpeed || 15;
+      ratePerSec = t.rate * bSpeed;
+    }
     demands.set(t.itemId, (demands.get(t.itemId) || 0) + ratePerSec);
   });
 
@@ -215,8 +262,8 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
       const baseYield = targetProduct ? targetProduct.amount : (recipe.yield || 1);
       const actualYield = baseYield * (1 + productivityBonus);
       craftsPerSec = netDemand / actualYield;
-      machineCount = (craftsPerSec * recipe.time) / actualSpeed;
-      energyUsage = machine ? machine.energy * energyModifier * machineCount : 0;
+      machineCount = actualSpeed > 0 ? (craftsPerSec * recipe.time) / actualSpeed : 0;
+      energyUsage = (machine && actualSpeed > 0) ? machine.energy * energyModifier * machineCount : 0;
 
       // Add demands for all ingredients
       recipe.ingredients.forEach(ing => {
@@ -237,14 +284,14 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
     const targetProduct = recipe.products?.find(p => p.itemId === primaryProductId) || recipe.products?.[0] || null;
     const primaryYield = targetProduct ? targetProduct.amount : (recipe.yield || 1);
     const primaryOutputPerSec = craftsPerSec * primaryYield * (1 + productivityBonus);
-    outputRate = page.rateUnit === 'second' ? primaryOutputPerSec : primaryOutputPerSec * 60;
+    outputRate = convertPerSecToUnit(primaryOutputPerSec);
 
     // Ingredients rates for this step
     recipe.ingredients.forEach(ing => {
       const ratePerSec = craftsPerSec * ing.count;
       lineIngredients.push({
         itemId: ing.itemId,
-        rate: page.rateUnit === 'second' ? ratePerSec : ratePerSec * 60
+        rate: convertPerSecToUnit(ratePerSec)
       });
     });
 
@@ -290,13 +337,13 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
       // Byproduct (surplus)
       byproductsSummary.push({
         itemId,
-        rate: page.rateUnit === 'second' ? diff : diff * 60
+        rate: convertPerSecToUnit(diff)
       });
     } else if (diff < -0.0001) {
       // Ingredient (deficit)
       ingredientsSummary.push({
         itemId,
-        rate: page.rateUnit === 'second' ? -diff : -diff * 60
+        rate: convertPerSecToUnit(-diff)
       });
     }
   });
