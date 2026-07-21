@@ -96,8 +96,23 @@ export default function App() {
     setLoadIconsStatus({ state: 'loading' });
     try {
       const res = await fetch("/api/assets");
-      if (!res.ok) throw new Error("Failed to contact the asset scanning service.");
       const contentType = res.headers.get("content-type") || "";
+      
+      if (!res.ok) {
+        if (contentType.includes("application/json")) {
+          try {
+            const errData = await res.json();
+            throw new Error(errData.message || errData.error || `HTTP ${res.status}`);
+          } catch (e: any) {
+            throw new Error(e.message || `HTTP ${res.status}`);
+          }
+        } else if (contentType.includes("text/html")) {
+          throw new Error("Server is restarting or not ready (returned HTML). Please wait a few seconds.");
+        } else {
+          throw new Error(`Server returned HTTP ${res.status}`);
+        }
+      }
+
       if (contentType.includes("text/html")) {
         throw new Error("Server is restarting or not ready. Please wait a few seconds and try again.");
       }

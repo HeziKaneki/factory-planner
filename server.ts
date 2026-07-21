@@ -33,16 +33,23 @@ async function startServer() {
 
   // API endpoints
   app.get("/api/assets", (req, res) => {
+    console.log(`[API] GET /api/assets request received. Current working dir: ${process.cwd()}`);
     try {
       const assetsMap: Record<string, string> = {};
       const baseDir = path.join(process.cwd(), "assets");
+      console.log(`[API] Assets base directory resolved to: ${baseDir}. Exists: ${fs.existsSync(baseDir)}`);
+      
       const categories = ["items", "recipes", "machines", "modifiers"];
 
       categories.forEach(cat => {
         const dirPath = path.join(baseDir, cat);
-        if (fs.existsSync(dirPath)) {
+        const exists = fs.existsSync(dirPath);
+        console.log(`[API] Checking category directory "${cat}" at: ${dirPath}. Exists: ${exists}`);
+        
+        if (exists) {
           try {
             const files = fs.readdirSync(dirPath);
+            console.log(`[API] Found ${files.length} files in "${cat}" directory.`);
             files.forEach(file => {
               const extIdx = file.lastIndexOf(".");
               if (extIdx !== -1) {
@@ -51,16 +58,22 @@ async function startServer() {
                 assetsMap[`${cat}:${id}`] = `/assets/${cat}/${file}`;
               }
             });
-          } catch (err) {
-            console.error(`Error scanning assets for ${cat}:`, err);
+          } catch (err: any) {
+            console.error(`[API] Error scanning assets directory for "${cat}":`, err);
+            throw new Error(`Failed to read category folder "${cat}": ${err?.message || err}`);
           }
         }
       });
 
+      console.log(`[API] Asset scan completed. Found ${Object.keys(assetsMap).length} total asset mappings.`);
       res.json(assetsMap);
-    } catch (error) {
-      console.error("Error in GET /api/assets:", error);
-      res.status(500).json({ error: "Failed to scan assets" });
+    } catch (error: any) {
+      console.error("[API] Fatal error in GET /api/assets:", error);
+      res.status(500).json({ 
+        error: "Failed to scan assets", 
+        message: error?.message || String(error),
+        stack: error?.stack 
+      });
     }
   });
 
