@@ -602,7 +602,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
           {activeSection === 'items' && groupedItems ? (
             <div className="space-y-2 mt-2">
               {groupedItems.map(([catKey, itemsList]) => {
-                const catName = dbCategories[catKey] || (catKey === 'no-category' ? 'No Category' : catKey);
+                const rawCat = dbCategories[catKey];
+                const catName = (typeof rawCat === 'string' ? rawCat : rawCat?.name) || (catKey === 'no-category' ? 'No Category' : catKey);
                 const isCollapsed = !!collapsedCategories[catKey];
                 return (
                   <div key={catKey} className="space-y-1">
@@ -708,7 +709,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                   'chemical-plant': 'Chemical Plants',
                   'miner': 'Mining Drills'
                 };
-                const catName = machineCategories[catKey] || catKey.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const rawCat = dbMachineCategories[catKey];
+                const catName = (typeof rawCat === 'string' ? rawCat : rawCat?.name) || machineCategories[catKey] || catKey.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 const isCollapsed = !!collapsedCategories[`machine-${catKey}`];
                 return (
                   <div key={catKey} className="space-y-1">
@@ -808,7 +810,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
           ) : activeSection === 'modifiers' && groupedModifiers ? (
             <div className="space-y-2 mt-2">
               {groupedModifiers.map(([catKey, modifiersList]) => {
-                const catName = dbModifierCategories[catKey] || (catKey === 'no-category' ? 'No Category' : catKey);
+                const rawCat = dbModifierCategories[catKey];
+                const catName = (typeof rawCat === 'string' ? rawCat : rawCat?.name) || (catKey === 'no-category' ? 'No Category' : catKey);
                 const isCollapsed = !!collapsedCategories[`modifier-${catKey}`];
                 return (
                   <div key={catKey} className="space-y-1">
@@ -1054,9 +1057,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                     onChange={(e) => setItemCategory(e.target.value)}
                     className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-semibold"
                   >
-                    {Object.entries(dbCategories).map(([catKey, name]: [string, any]) => (
-                      <option key={catKey} value={catKey}>{name} ({catKey})</option>
-                    ))}
+                    {Object.entries(dbCategories).map(([catKey, name]: [string, any]) => {
+                      const displayName = typeof name === 'string' ? name : (name?.name || catKey);
+                      return <option key={catKey} value={catKey}>{displayName} ({catKey})</option>;
+                    })}
                   </select>
                 </div>
 
@@ -1235,9 +1239,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                       onChange={(e) => setRecipeCategory(e.target.value)}
                       className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-semibold"
                     >
-                      {Object.entries(dbMachineCategories).map(([key, name]: [string, any]) => (
-                        <option key={key} value={key}>{name} ({key})</option>
-                      ))}
+                      {Object.entries(dbMachineCategories).map(([key, name]: [string, any]) => {
+                        const displayName = typeof name === 'string' ? name : (name?.name || key);
+                        return <option key={key} value={key}>{displayName} ({key})</option>;
+                      })}
                     </select>
                   </div>
                 </div>
@@ -1429,9 +1434,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                     onChange={(e) => setModifierCategory(e.target.value)}
                     className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-semibold"
                   >
-                    {Object.entries(dbModifierCategories).map(([key, name]: [string, any]) => (
-                      <option key={key} value={key}>{name} ({key})</option>
-                    ))}
+                    {Object.entries(dbModifierCategories).map(([key, name]: [string, any]) => {
+                      const displayName = typeof name === 'string' ? name : (name?.name || key);
+                      return <option key={key} value={key}>{displayName} ({key})</option>;
+                    })}
                   </select>
                 </div>
 
