@@ -340,10 +340,24 @@ export default function App() {
 
   const handleUpdateBeltSpeed = (speed: number) => {
     if (!activePage) return;
-    handleUpdatePage({
+    const oldBeltSpeed = activePage.beltSpeed || 15;
+    const newBeltSpeed = speed || 15;
+
+    let updatedPage = {
       ...activePage,
       beltSpeed: speed
-    });
+    };
+
+    if (activePage.rateUnit === 'belt') {
+      const targets = activePage.targetProducts || (activePage.targetItemId ? [{ itemId: activePage.targetItemId, rate: activePage.targetRate }] : []);
+      const updatedTargets = targets.map(t => ({
+        ...t,
+        rate: Math.round((t.rate * oldBeltSpeed / newBeltSpeed) * 1000000) / 1000000
+      }));
+      updatedPage = updatePageTargets(updatedPage, updatedTargets);
+    }
+
+    handleUpdatePage(updatedPage);
   };
 
   const handleToggleItemsViewMode = (mode: 'items-m' | 'items-s') => {
@@ -710,7 +724,7 @@ export default function App() {
               {/* WORKSPACE SUB HEADER TAB */}
               <div className="border-b border-zinc-950 bg-zinc-900/60 p-3 flex flex-wrap items-center justify-between gap-3 shadow-md relative z-10">
                 
-                {/* Left Side: Title & Belt / rate controls */}
+                {/* Left Side: Title */}
                 <div className="flex items-center gap-4 flex-wrap text-left">
                   {/* Active page item title */}
                   <div className="flex items-center gap-2">
@@ -723,9 +737,43 @@ export default function App() {
                       </h2>
                     </div>
                   </div>
+                </div>
 
-                  {/* Rate switch */}
+                {/* Right Side: Rate units, Belt speed, Solver mode switch */}
+                <div className="flex items-center gap-4 flex-wrap">
+                  {/* Belt speed input (shown only when 'belt' is selected) - placed to the left of rate switch */}
+                  {activePage.rateUnit === 'belt' && (
+                    <div className="flex items-center bg-zinc-950 px-2 py-1 rounded border border-zinc-800 text-xs font-bold gap-1.5">
+                      <span className="text-zinc-400 uppercase text-[10px] tracking-wider">Belt Speed:</span>
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="any"
+                        value={activePage.beltSpeed || 15}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val) && val > 0) {
+                            handleUpdateBeltSpeed(val);
+                          }
+                        }}
+                        className="w-14 bg-zinc-900 border border-zinc-700 rounded px-1 text-center text-white text-xs font-mono font-bold focus:border-[#e58e26] focus:outline-none"
+                      />
+                      <span className="text-zinc-500 text-[10px]">items/s</span>
+                    </div>
+                  )}
+
+                  {/* Rate switch - reordered: belt, /sec, /min */}
                   <div className="flex items-center bg-zinc-950 p-1 rounded border border-zinc-800 text-xs font-bold gap-1">
+                    <button
+                      onClick={() => handleSetRateUnit('belt')}
+                      className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                        activePage.rateUnit === 'belt'
+                          ? 'bg-[#e58e26] text-zinc-950 font-bold shadow'
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      belt
+                    </button>
                     <button
                       onClick={() => handleSetRateUnit('second')}
                       className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
@@ -746,42 +794,8 @@ export default function App() {
                     >
                       /min
                     </button>
-                    <button
-                      onClick={() => handleSetRateUnit('belt')}
-                      className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
-                        activePage.rateUnit === 'belt'
-                          ? 'bg-[#e58e26] text-zinc-950 font-bold shadow'
-                          : 'text-zinc-500 hover:text-zinc-300'
-                      }`}
-                    >
-                      belt
-                    </button>
                   </div>
 
-                  {/* Belt speed input (shown only when 'belt' is selected) */}
-                  {activePage.rateUnit === 'belt' && (
-                    <div className="flex items-center bg-zinc-950 px-2 py-1 rounded border border-zinc-800 text-xs font-bold gap-1.5">
-                      <span className="text-zinc-400 uppercase text-[10px] tracking-wider">Belt Speed:</span>
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="any"
-                        value={activePage.beltSpeed || 15}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          if (!isNaN(val) && val > 0) {
-                            handleUpdateBeltSpeed(val);
-                          }
-                        }}
-                        className="w-14 bg-zinc-900 border border-zinc-700 rounded px-1 text-center text-white text-xs font-mono font-bold focus:border-[#e58e26] focus:outline-none"
-                      />
-                      <span className="text-zinc-500 text-[10px]">items/s</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right Side: Solver mode switch */}
-                <div className="flex items-center gap-4 flex-wrap">
                   {/* Solver mode switch */}
                   <div className="flex items-center bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800 text-xs font-bold gap-2">
                     <span className="text-zinc-400 uppercase text-[10px] tracking-wider">Solver:</span>
