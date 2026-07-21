@@ -380,7 +380,7 @@ export default function App() {
   }, [pages, searchPageTerm, items]);
 
   return (
-    <div className="min-h-screen factorio-container factorio-bg-mesh flex flex-col font-sans select-none antialiased">
+    <div className="h-screen max-h-screen overflow-hidden factorio-container factorio-bg-mesh flex flex-col font-sans select-none antialiased">
       
       {/* 1. TOP HEADER STATUS BAR */}
       <header className="border-b-2 border-zinc-950 bg-zinc-900/95 py-2 px-4 flex items-center justify-between shadow-lg relative z-20">
