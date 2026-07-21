@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Edit2, Check, X, Search, ChevronDown, ChevronRight, Upload } from 'lucide-react';
 import { ItemIcon } from './ItemIcon';
+import { SearchableItemSelector } from './SearchableItemSelector';
 
 interface EditorTabProps {
   customDb: any;
@@ -1256,15 +1257,12 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                   <div className="space-y-1.5">
                     {recipeIngredients.map((ing, index) => (
                       <div key={index} className="flex gap-2 items-center bg-zinc-950/40 p-1.5 rounded border border-zinc-950">
-                        <select
+                        <SearchableItemSelector
                           value={ing.itemId}
-                          onChange={(e) => handleUpdateIngredient(index, 'itemId', e.target.value)}
-                          className="flex-1 bg-zinc-950 text-white border border-zinc-800 px-2 py-1 rounded text-xs focus:outline-none"
-                        >
-                          {allItemsList.map(item => (
-                            <option key={item} value={item}>{customDb.items[item]?.name || item}</option>
-                          ))}
-                        </select>
+                          onChange={(val) => handleUpdateIngredient(index, 'itemId', val)}
+                          items={customDb.items || {}}
+                          allItemsList={allItemsList}
+                        />
                         <input
                           type="number"
                           value={ing.amount}
@@ -1304,15 +1302,12 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                   <div className="space-y-1.5">
                     {recipeProducts.map((p, index) => (
                       <div key={index} className="flex gap-2 items-center bg-zinc-950/40 p-1.5 rounded border border-zinc-950">
-                        <select
+                        <SearchableItemSelector
                           value={p.itemId}
-                          onChange={(e) => handleUpdateProduct(index, 'itemId', e.target.value)}
-                          className="flex-1 bg-zinc-950 text-white border border-zinc-800 px-2 py-1 rounded text-xs focus:outline-none"
-                        >
-                          {allItemsList.map(item => (
-                            <option key={item} value={item}>{customDb.items[item]?.name || item}</option>
-                          ))}
-                        </select>
+                          onChange={(val) => handleUpdateProduct(index, 'itemId', val)}
+                          items={customDb.items || {}}
+                          allItemsList={allItemsList}
+                        />
                         <input
                           type="number"
                           value={p.amount}
