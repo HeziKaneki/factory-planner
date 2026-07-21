@@ -99,7 +99,7 @@ export default function App() {
       if (!res.ok) throw new Error("Failed to contact the asset scanning service.");
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("text/html")) {
-        throw new Error("Máy chủ đang khởi động lại hoặc chưa sẵn sàng. Vui lòng đợi vài giây và thử lại.");
+        throw new Error("Server is restarting or not ready. Please wait a few seconds and try again.");
       }
       const assetsMap = await res.json();
 
