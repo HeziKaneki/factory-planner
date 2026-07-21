@@ -85,6 +85,79 @@ export default function App() {
   const [customPromptType, setCustomPromptType] = useState<'rename' | 'new-page' | 'rate' | 'preferences' | null>(null);
   const [promptInputValue, setPromptInputValue] = useState('');
   
+  // Auto Load Icons from Assets state
+  const [loadIconsStatus, setLoadIconsStatus] = useState<{
+    state: 'idle' | 'loading' | 'success' | 'error';
+    count?: number;
+    error?: string;
+  }>({ state: 'idle' });
+
+  const handleAutoLoadIcons = async () => {
+    setLoadIconsStatus({ state: 'loading' });
+    try {
+      const res = await fetch("/api/assets");
+      if (!res.ok) throw new Error("Failed to contact the asset scanning service.");
+      const assetsMap = await res.json();
+
+      const newDb = { ...customDb };
+      let updatedCount = 0;
+
+      // 1. Items
+      if (newDb.items) {
+        newDb.items = { ...newDb.items };
+        Object.entries(newDb.items).forEach(([id, item]: [string, any]) => {
+          if (!item.icon_url && assetsMap[`items:${id}`]) {
+            newDb.items[id] = { ...item, icon_url: assetsMap[`items:${id}`] };
+            updatedCount++;
+          }
+        });
+      }
+
+      // 2. Recipes
+      if (newDb.recipes) {
+        newDb.recipes = { ...newDb.recipes };
+        Object.entries(newDb.recipes).forEach(([id, recipe]: [string, any]) => {
+          if (!recipe.icon_url && assetsMap[`recipes:${id}`]) {
+            newDb.recipes[id] = { ...recipe, icon_url: assetsMap[`recipes:${id}`] };
+            updatedCount++;
+          }
+        });
+      }
+
+      // 3. Machines
+      if (newDb.machines) {
+        newDb.machines = { ...newDb.machines };
+        Object.entries(newDb.machines).forEach(([id, machine]: [string, any]) => {
+          if (!machine.icon_url && assetsMap[`machines:${id}`]) {
+            newDb.machines[id] = { ...machine, icon_url: assetsMap[`machines:${id}`] };
+            updatedCount++;
+          }
+        });
+      }
+
+      // 4. Modifiers
+      if (newDb.modifiers) {
+        newDb.modifiers = { ...newDb.modifiers };
+        Object.entries(newDb.modifiers).forEach(([id, modifier]: [string, any]) => {
+          if (!modifier.icon_url && assetsMap[`modifiers:${id}`]) {
+            newDb.modifiers[id] = { ...modifier, icon_url: assetsMap[`modifiers:${id}`] };
+            updatedCount++;
+          }
+        });
+      }
+
+      if (updatedCount > 0) {
+        setCustomDb(newDb);
+        setLoadIconsStatus({ state: 'success', count: updatedCount });
+      } else {
+        setLoadIconsStatus({ state: 'success', count: 0 });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setLoadIconsStatus({ state: 'error', error: err?.message || "Unknown error" });
+    }
+  };
+
   // Ingredient recipe selector state
   const [selectedIngredientId, setSelectedIngredientId] = useState<string | null>(null);
 
@@ -454,6 +527,7 @@ export default function App() {
           <button 
             onClick={() => {
               setPromptInputValue('');
+              setLoadIconsStatus({ state: 'idle' });
               setCustomPromptType('preferences');
             }}
             className="factorio-btn text-xs px-3 py-1.5 flex items-center gap-1.5 uppercase font-bold"
@@ -1199,6 +1273,52 @@ export default function App() {
                       >
                         Reset to Defaults
                       </button>
+                    </div>
+
+                    <div className="p-3 rounded bg-zinc-950/40 border border-zinc-900 space-y-1.5">
+                      <div className="font-bold text-[#e58e26] uppercase">Auto Scan & Load Icons</div>
+                      <p className="text-zinc-400 font-normal leading-relaxed">
+                        Scan all database items, recipes, machines, and modules that are missing an icon URL, and automatically map them to existing matching files in the assets directory.
+                      </p>
+                      {loadIconsStatus.state === 'idle' && (
+                        <button 
+                          onClick={handleAutoLoadIcons}
+                          className="factorio-btn px-3 py-1 mt-1 text-[10px] font-bold uppercase hover:text-white cursor-pointer"
+                        >
+                          Scan & Load Icons
+                        </button>
+                      )}
+                      {loadIconsStatus.state === 'loading' && (
+                        <div className="text-zinc-400 font-mono text-[10px] uppercase font-bold animate-pulse mt-1">
+                          Scanning folders and matching files...
+                        </div>
+                      )}
+                      {loadIconsStatus.state === 'success' && (
+                        <div className="space-y-1.5 mt-1">
+                          <div className="text-green-500 font-mono text-[10px] uppercase font-bold">
+                            Successfully resolved {loadIconsStatus.count} missing icons!
+                          </div>
+                          <button 
+                            onClick={handleAutoLoadIcons}
+                            className="text-[10px] text-zinc-500 hover:text-zinc-300 underline uppercase font-bold cursor-pointer"
+                          >
+                            Scan again
+                          </button>
+                        </div>
+                      )}
+                      {loadIconsStatus.state === 'error' && (
+                        <div className="space-y-1.5 mt-1">
+                          <div className="text-red-500 font-mono text-[10px] uppercase font-bold">
+                            Error: {loadIconsStatus.error}
+                          </div>
+                          <button 
+                            onClick={handleAutoLoadIcons}
+                            className="factorio-btn px-3 py-1 text-[10px] font-bold uppercase hover:text-white cursor-pointer animate-pulse"
+                          >
+                            Retry scan
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-3 rounded bg-zinc-950/40 border border-zinc-900 space-y-1 font-normal leading-relaxed text-zinc-400">

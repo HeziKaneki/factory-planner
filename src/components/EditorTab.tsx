@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Check, X, Search, ChevronDown, ChevronRight, Upload } from 'lucide-react';
 import { ItemIcon } from './ItemIcon';
 import { SearchableItemSelector } from './SearchableItemSelector';
@@ -17,6 +17,14 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [assetsMap, setAssetsMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    fetch("/api/assets")
+      .then(res => res.ok ? res.json() : {})
+      .then(data => setAssetsMap(data || {}))
+      .catch(() => {});
+  }, []);
 
   // Form States
   const [itemId, setItemId] = useState('');
@@ -281,39 +289,55 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
     if (activeSection === 'items') {
       idToSave = itemId.trim() || itemName.trim().toLowerCase().replace(/\s+/g, '-');
       if (!idToSave) return;
-      valToSave = { name: itemName, category: itemCategory, icon_url: itemIconUrl.trim() };
+      let iconUrl = itemIconUrl.trim();
+      if (!iconUrl && assetsMap[`items:${idToSave}`]) {
+        iconUrl = assetsMap[`items:${idToSave}`];
+      }
+      valToSave = { name: itemName, category: itemCategory, icon_url: iconUrl };
       updatedDb.items = { ...updatedDb.items, [idToSave]: valToSave };
     } else if (activeSection === 'machines') {
       idToSave = machineId.trim() || machineName.trim().toLowerCase().replace(/\s+/g, '-');
       if (!idToSave) return;
+      let iconUrl = machineIconUrl.trim();
+      if (!iconUrl && assetsMap[`machines:${idToSave}`]) {
+        iconUrl = assetsMap[`machines:${idToSave}`];
+      }
       valToSave = {
         name: machineName,
         crafting_speed: Number(machineSpeed),
         slots: Number(machineSlots),
         category: machineCategory,
-        icon_url: machineIconUrl.trim()
+        icon_url: iconUrl
       };
       updatedDb.machines = { ...updatedDb.machines, [idToSave]: valToSave };
     } else if (activeSection === 'recipes') {
       idToSave = recipeId.trim() || recipeName.trim().toLowerCase().replace(/\s+/g, '-');
       if (!idToSave) return;
+      let iconUrl = recipeIconUrl.trim();
+      if (!iconUrl && assetsMap[`recipes:${idToSave}`]) {
+        iconUrl = assetsMap[`recipes:${idToSave}`];
+      }
       valToSave = {
         name: recipeName,
         crafting_time: Number(recipeTime),
         category: recipeCategory,
         ingredients: recipeIngredients,
         products: recipeProducts.length > 0 ? recipeProducts : [{ itemId: idToSave, amount: 1 }],
-        icon_url: recipeIconUrl.trim()
+        icon_url: iconUrl
       };
       updatedDb.recipes = { ...updatedDb.recipes, [idToSave]: valToSave };
     } else if (activeSection === 'modifiers') {
       idToSave = modifierId.trim() || modifierName.trim().toLowerCase().replace(/\s+/g, '-');
       if (!idToSave) return;
+      let iconUrl = modifierIconUrl.trim();
+      if (!iconUrl && assetsMap[`modifiers:${idToSave}`]) {
+        iconUrl = assetsMap[`modifiers:${idToSave}`];
+      }
       valToSave = {
         name: modifierName,
         speed_bonus: Number(modSpeed),
         productivity_bonus: Number(modProd),
-        icon_url: modifierIconUrl.trim(),
+        icon_url: iconUrl,
         category: modifierCategory
       };
       updatedDb.modifiers = { ...updatedDb.modifiers, [idToSave]: valToSave };
