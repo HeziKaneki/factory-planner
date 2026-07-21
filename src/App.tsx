@@ -97,6 +97,10 @@ export default function App() {
     try {
       const res = await fetch("/api/assets");
       if (!res.ok) throw new Error("Failed to contact the asset scanning service.");
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        throw new Error("Máy chủ đang khởi động lại hoặc chưa sẵn sàng. Vui lòng đợi vài giây và thử lại.");
+      }
       const assetsMap = await res.json();
 
       const newDb = { ...customDb };

@@ -21,7 +21,12 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
 
   useEffect(() => {
     fetch("/api/assets")
-      .then(res => res.ok ? res.json() : {})
+      .then(res => {
+        if (!res.ok) return {};
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("text/html")) return {};
+        return res.json();
+      })
       .then(data => setAssetsMap(data || {}))
       .catch(() => {});
   }, []);
