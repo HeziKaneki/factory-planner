@@ -169,12 +169,6 @@ export function createDefaultLine(recipeId: string, customDb?: any, targetItemId
 
 export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResult {
   const { items, recipes, machines, modules } = normalizeDatabase(customDb);
-  const bSpeed = page.beltSpeed || 15;
-  const convertPerSecToUnit = (ratePerSec: number) => {
-    if (page.rateUnit === 'second') return ratePerSec;
-    if (page.rateUnit === 'minute') return ratePerSec * 60;
-    return ratePerSec / bSpeed; // 'belt'
-  };
 
   // 1. Index current lines for easy lookup
   const linesMap = new Map<string, FactoryPlannerLine>();
@@ -197,15 +191,8 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
   // Initialize demands with target products
   const targets = page.targetProducts ? page.targetProducts : (page.targetItemId ? [{ itemId: page.targetItemId, rate: page.targetRate }] : []);
   targets.forEach(t => {
-    let ratePerSec = 0;
-    if (page.rateUnit === 'second') {
-      ratePerSec = t.rate;
-    } else if (page.rateUnit === 'minute') {
-      ratePerSec = t.rate / 60;
-    } else if (page.rateUnit === 'belt') {
-      const bSpeed = page.beltSpeed || 15;
-      ratePerSec = t.rate * bSpeed;
-    }
+    // Under the decoupled design, rates in targetProducts are always items/second!
+    const ratePerSec = t.rate;
     demands.set(t.itemId, (demands.get(t.itemId) || 0) + ratePerSec);
   });
 
@@ -284,14 +271,14 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
     const targetProduct = recipe.products?.find(p => p.itemId === primaryProductId) || recipe.products?.[0] || null;
     const primaryYield = targetProduct ? targetProduct.amount : (recipe.yield || 1);
     const primaryOutputPerSec = craftsPerSec * primaryYield * (1 + productivityBonus);
-    outputRate = convertPerSecToUnit(primaryOutputPerSec);
+    outputRate = primaryOutputPerSec;
 
     // Ingredients rates for this step
     recipe.ingredients.forEach(ing => {
       const ratePerSec = craftsPerSec * ing.count;
       lineIngredients.push({
         itemId: ing.itemId,
-        rate: convertPerSecToUnit(ratePerSec)
+        rate: ratePerSec
       });
     });
 
@@ -337,13 +324,13 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
       // Byproduct (surplus)
       byproductsSummary.push({
         itemId,
-        rate: convertPerSecToUnit(diff)
+        rate: diff
       });
     } else if (diff < -0.0001) {
       // Ingredient (deficit)
       ingredientsSummary.push({
         itemId,
-        rate: convertPerSecToUnit(-diff)
+        rate: -diff
       });
     }
   });

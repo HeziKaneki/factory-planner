@@ -96,7 +96,41 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 2
               resolvedIcon = assets[`modifiers:${id}`];
             }
           } else if (type === 'category') {
-            if (assets[`categories:${id}`]) {
+            let defMachineId: string | undefined = undefined;
+            const machineCat = parsed?.machine_categories?.[id];
+            if (machineCat && typeof machineCat === 'object' && machineCat.defaultMachineId) {
+              defMachineId = machineCat.defaultMachineId;
+            } else {
+              // Standard fallbacks if categories are not fully defined as objects yet
+              if (id === 'furnace') {
+                defMachineId = 'electric-furnace';
+              } else if (id === 'chemical-plant') {
+                defMachineId = 'chemical-plant';
+              } else if (id === 'miner') {
+                defMachineId = 'electric-mining-drill';
+              } else if (id === 'assembling-machine') {
+                defMachineId = 'assembling-machine-3';
+              } else if (parsed?.machines) {
+                // Find first machine in this category
+                const found = Object.entries(parsed.machines).find(([_, m]: [string, any]) => m.category === id);
+                if (found) {
+                  defMachineId = found[0];
+                }
+              }
+            }
+
+            if (defMachineId) {
+              const defMachine = parsed?.machines?.[defMachineId];
+              if (defMachine?.icon_url) {
+                resolvedIcon = defMachine.icon_url;
+              } else if (assets[`machines:${defMachineId}`]) {
+                resolvedIcon = assets[`machines:${defMachineId}`];
+              } else {
+                resolved = defMachineId;
+              }
+            }
+
+            if (!resolvedIcon && assets[`categories:${id}`]) {
               resolvedIcon = assets[`categories:${id}`];
             }
           }

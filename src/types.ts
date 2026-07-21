@@ -66,6 +66,7 @@ export interface FactoryPage {
   lines: FactoryPlannerLine[];
   solverMode: 'traditional' | 'matrix';
   itemsViewMode: 'items-m' | 'items-s'; // Items/m or Items/s
+  normalizedToSec?: boolean;
 }
 
 export interface CustomDb {

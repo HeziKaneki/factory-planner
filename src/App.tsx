@@ -53,6 +53,39 @@ export function formatBadgeValue(value: number): string {
   return roundedUp % 1 === 0 ? `${roundedUp.toFixed(0)}` : `${roundedUp.toFixed(1)}`;
 }
 
+function normalizePages(loadedPages: FactoryPage[]): FactoryPage[] {
+  return loadedPages.map(page => {
+    if ((page as any).normalizedToSec) {
+      return page;
+    }
+
+    const unit = page.rateUnit || 'minute';
+    const beltSpeed = page.beltSpeed || 15;
+
+    const convertToSec = (oldRate: number) => {
+      if (unit === 'second') return oldRate;
+      if (unit === 'minute') return oldRate / 60;
+      return oldRate * beltSpeed;
+    };
+
+    const targetProducts = page.targetProducts || (page.targetItemId ? [{ itemId: page.targetItemId, rate: page.targetRate }] : []);
+    const updatedTargets = targetProducts.map(t => ({
+      ...t,
+      rate: convertToSec(t.rate)
+    }));
+
+    const primaryTarget = updatedTargets[0];
+
+    return {
+      ...page,
+      targetItemId: primaryTarget ? primaryTarget.itemId : (page.targetItemId || ''),
+      targetRate: primaryTarget ? primaryTarget.rate : (convertToSec(page.targetRate) || 0),
+      targetProducts: updatedTargets,
+      normalizedToSec: true
+    };
+  });
+}
+
 export default function App() {
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'planner' | 'editor' | 'database'>('planner');
@@ -66,7 +99,8 @@ export default function App() {
 
   const [pages, setPages] = useState<FactoryPage[]>(() => {
     const saved = localStorage.getItem('factory_planner_pages');
-    return saved ? JSON.parse(saved) : DEFAULT_PAGES;
+    const parsed = saved ? JSON.parse(saved) : DEFAULT_PAGES;
+    return normalizePages(parsed);
   });
 
   const [selectedPageId, setSelectedPageId] = useState<string>(() => {
@@ -190,6 +224,20 @@ export default function App() {
     return pages.find(p => p.id === selectedPageId) || pages[0] || null;
   }, [pages, selectedPageId]);
 
+  const displayRate = (ratePerSec: number) => {
+    const unit = activePage?.rateUnit || 'minute';
+    const beltSpeed = activePage?.beltSpeed || 15;
+    if (unit === 'second') return ratePerSec;
+    if (unit === 'minute') return ratePerSec * 60;
+    return ratePerSec / beltSpeed;
+  };
+
+  const convertDisplayToSec = (displayValue: number, unit: 'second' | 'minute' | 'belt', beltSpeed: number = 15) => {
+    if (unit === 'second') return displayValue;
+    if (unit === 'minute') return displayValue / 60;
+    return displayValue * beltSpeed;
+  };
+
   // Load from server API on mount
   useEffect(() => {
     async function loadFromServer() {
@@ -295,69 +343,18 @@ export default function App() {
 
   const handleSetRateUnit = (nextUnit: 'second' | 'minute' | 'belt') => {
     if (!activePage) return;
-    const currentUnit = activePage.rateUnit || 'minute';
-    if (currentUnit === nextUnit) return;
-
-    const oldBeltSpeed = activePage.beltSpeed || 15;
-    const newBeltSpeed = activePage.beltSpeed || 15;
-
-    const targets = activePage.targetProducts || (activePage.targetItemId ? [{ itemId: activePage.targetItemId, rate: activePage.targetRate }] : []);
-
-    const updatedTargets = targets.map(t => {
-      // Convert to items/second first
-      let ratePerSec = 0;
-      if (currentUnit === 'second') {
-        ratePerSec = t.rate;
-      } else if (currentUnit === 'minute') {
-        ratePerSec = t.rate / 60;
-      } else if (currentUnit === 'belt') {
-        ratePerSec = t.rate * oldBeltSpeed;
-      }
-
-      // Convert from items/second to nextUnit
-      let finalRate = 0;
-      if (nextUnit === 'second') {
-        finalRate = ratePerSec;
-      } else if (nextUnit === 'minute') {
-        finalRate = ratePerSec * 60;
-      } else if (nextUnit === 'belt') {
-        finalRate = ratePerSec / newBeltSpeed;
-      }
-
-      return {
-        ...t,
-        rate: Math.round(finalRate * 1000) / 1000
-      };
-    });
-
-    const updatedPage = updatePageTargets(activePage, updatedTargets);
-
     handleUpdatePage({
-      ...updatedPage,
+      ...activePage,
       rateUnit: nextUnit
     });
   };
 
   const handleUpdateBeltSpeed = (speed: number) => {
     if (!activePage) return;
-    const oldBeltSpeed = activePage.beltSpeed || 15;
-    const newBeltSpeed = speed || 15;
-
-    let updatedPage = {
+    handleUpdatePage({
       ...activePage,
       beltSpeed: speed
-    };
-
-    if (activePage.rateUnit === 'belt') {
-      const targets = activePage.targetProducts || (activePage.targetItemId ? [{ itemId: activePage.targetItemId, rate: activePage.targetRate }] : []);
-      const updatedTargets = targets.map(t => ({
-        ...t,
-        rate: Math.round((t.rate * oldBeltSpeed / newBeltSpeed) * 1000000) / 1000000
-      }));
-      updatedPage = updatePageTargets(updatedPage, updatedTargets);
-    }
-
-    handleUpdatePage(updatedPage);
+    });
   };
 
   const handleToggleItemsViewMode = (mode: 'items-m' | 'items-s') => {
@@ -460,12 +457,14 @@ export default function App() {
       id,
       name: name || 'New Factory Line',
       targetItemId: targetItem || 'electronic-circuit',
-      targetRate: 60,
-      targetProducts: [{ itemId: targetItem || 'electronic-circuit', rate: 60 }],
+      targetRate: 1, // Store as 1 item/second (corresponds to 60/minute)
+      targetProducts: [{ itemId: targetItem || 'electronic-circuit', rate: 1 }],
       rateUnit: 'minute',
       solverMode: 'traditional',
       itemsViewMode: 'items-m',
-      lines: []
+      lines: [],
+      beltSpeed: 15,
+      normalizedToSec: true
     };
 
     setPages([...pages, newPage]);
@@ -508,7 +507,8 @@ export default function App() {
     const targets = activePage.targetProducts || [{ itemId: activePage.targetItemId, rate: activePage.targetRate }];
     const updatedTargets = targets.map(t => {
       if (t.itemId === rateEditItemId) {
-        return { ...t, rate: newRate };
+        const rateInSec = convertDisplayToSec(newRate, activePage.rateUnit || 'minute', activePage.beltSpeed || 15);
+        return { ...t, rate: rateInSec };
       }
       return t;
     });
@@ -834,47 +834,52 @@ export default function App() {
                       if (targets.length === 0) {
                         return <span className="text-[10px] text-zinc-500 italic">No products. Click + to add.</span>;
                       }
-                      return targets.map((t, idx, arr) => (
-                        <div 
-                          key={t.itemId + '-' + idx} 
-                          className="factorio-slot w-12 h-12 shrink-0 relative group cursor-pointer hover:border-[#e58e26] transition-all"
-                          title={`${items[t.itemId]?.name || t.itemId}: ${formatExactTooltip(t.rate)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'} (Left-click to change rate, Middle-click to remove)`}
-                          onClick={() => {
-                            setRateEditItemId(t.itemId);
-                            setPromptInputValue(t.rate.toString());
-                            setCustomPromptType('rate');
-                          }}
-                          onAuxClick={(e) => {
-                            if (e.button === 1) { // 1 is middle mouse button
-                              e.preventDefault();
-                              const updated = arr.filter((_, i) => i !== idx);
-                              handleUpdatePage(updatePageTargets(activePage, updated));
-                            }
-                          }}
-                        >
-                          <ItemIcon id={t.itemId} size={36} type="item" />
-                          
-                          {/* Target rate badge */}
-                          <div
-                            className="factorio-badge text-green-400 border border-zinc-800 bg-zinc-950/85 hover:text-[#e58e26] leading-none"
-                          >
-                            {formatBadgeValue(t.rate)}
-                          </div>
-
-                          {/* Delete Target button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const updated = arr.filter((_, i) => i !== idx);
-                              handleUpdatePage(updatePageTargets(activePage, updated));
+                      return targets.map((t, idx, arr) => {
+                        const displayVal = displayRate(t.rate);
+                        return (
+                          <div 
+                            key={t.itemId + '-' + idx} 
+                            className="factorio-slot w-12 h-12 shrink-0 relative group cursor-pointer hover:border-[#e58e26] transition-all"
+                            title={`${items[t.itemId]?.name || t.itemId}: ${formatExactTooltip(displayVal)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'} (Left-click to change rate, Middle-click to remove)`}
+                            onClick={() => {
+                              setRateEditItemId(t.itemId);
+                              const currentDisplayVal = displayRate(t.rate);
+                              const displayValString = (Math.round(currentDisplayVal * 10000) / 10000).toString();
+                              setPromptInputValue(displayValString);
+                              setCustomPromptType('rate');
                             }}
-                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold border border-zinc-950 shadow cursor-pointer z-10"
-                            title="Remove product"
+                            onAuxClick={(e) => {
+                              if (e.button === 1) { // 1 is middle mouse button
+                                e.preventDefault();
+                                const updated = arr.filter((_, i) => i !== idx);
+                                handleUpdatePage(updatePageTargets(activePage, updated));
+                              }
+                            }}
                           >
-                            ×
-                          </button>
-                        </div>
-                      ));
+                            <ItemIcon id={t.itemId} size={36} type="item" />
+                            
+                            {/* Target rate badge */}
+                            <div
+                              className="factorio-badge text-green-400 border border-zinc-800 bg-zinc-950/85 hover:text-[#e58e26] leading-none"
+                            >
+                              {formatBadgeValue(displayVal)}
+                            </div>
+
+                            {/* Delete Target button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updated = arr.filter((_, i) => i !== idx);
+                                handleUpdatePage(updatePageTargets(activePage, updated));
+                              }}
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold border border-zinc-950 shadow cursor-pointer z-10"
+                              title="Remove product"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      });
                     })()}
 
                     {/* Add target product button next to last icon */}
@@ -897,18 +902,21 @@ export default function App() {
 
                   {/* Horizontal Scroll row for Byproducts */}
                   <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-                    {solverResult.byproductsSummary.map(bp => (
-                      <div 
-                        key={bp.itemId} 
-                        className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help"
-                        title={`${items[bp.itemId]?.name || bp.itemId}: ${formatExactTooltip(bp.rate)}`}
-                      >
-                        <ItemIcon id={bp.itemId} size={32} type="item" />
-                        <div className="factorio-badge text-green-400 font-mono">
-                          {formatBadgeValue(bp.rate)}
+                    {solverResult.byproductsSummary.map(bp => {
+                      const displayVal = displayRate(bp.rate);
+                      return (
+                        <div 
+                          key={bp.itemId} 
+                          className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help"
+                          title={`${items[bp.itemId]?.name || bp.itemId}: ${formatExactTooltip(displayVal)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'}`}
+                        >
+                          <ItemIcon id={bp.itemId} size={32} type="item" />
+                          <div className="factorio-badge text-green-400 font-mono">
+                            {formatBadgeValue(displayVal)}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {solverResult.byproductsSummary.length === 0 && (
                       <span className="text-zinc-600 text-[11px] italic py-2 pl-1 leading-normal">
@@ -928,14 +936,14 @@ export default function App() {
                   {/* Horizontal Scroll row for Ingredients */}
                   <div className="flex gap-2 overflow-x-auto pb-1 max-w-full">
                     {solverResult.ingredientsSummary.map(ing => {
-                      const rateForUnit = ing.rate;
+                      const rateForUnit = displayRate(ing.rate);
 
                       return (
                         <div 
                           key={ing.itemId} 
                           onClick={() => setSelectedIngredientId(ing.itemId)}
                           className="factorio-slot w-11 h-11 shrink-0 group relative cursor-pointer hover:border-[#e58e26] transition-all"
-                          title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(rateForUnit)} (Click to select recipe)`}
+                          title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(rateForUnit)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'} (Click to select recipe)`}
                         >
                           <ItemIcon id={ing.itemId} size={32} type="item" />
                           <div className="factorio-badge text-xs font-mono">
@@ -1116,15 +1124,20 @@ export default function App() {
                           {/* Column 5: Output Rate */}
                           <td className="px-3 py-3.5 border-r border-zinc-950 text-center">
                             <div className="flex justify-center">
-                              <div 
-                                className="factorio-slot w-11 h-11 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
-                                title={`${items[stepTargetId]?.name || stepTargetId}: ${formatExactTooltip(line.outputRate)}`}
-                              >
-                                <ItemIcon id={stepTargetId} size={32} />
-                                <div className="factorio-badge text-green-400 font-mono">
-                                  {formatBadgeValue(line.outputRate)}
-                                </div>
-                              </div>
+                              {(() => {
+                                const outDisp = displayRate(line.outputRate);
+                                return (
+                                  <div 
+                                    className="factorio-slot w-11 h-11 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
+                                    title={`${items[stepTargetId]?.name || stepTargetId}: ${formatExactTooltip(outDisp)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'}`}
+                                  >
+                                    <ItemIcon id={stepTargetId} size={32} />
+                                    <div className="factorio-badge text-green-400 font-mono">
+                                      {formatBadgeValue(outDisp)}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
 
@@ -1138,15 +1151,16 @@ export default function App() {
                                     {lineByproducts.map((p, pIdx) => {
                                       const primaryProductYield = recipe.products?.find(pr => pr.itemId === stepTargetId)?.amount || recipe.products?.[0]?.amount || 1;
                                       const byRate = line.outputRate * (p.amount / primaryProductYield);
+                                      const byDisp = displayRate(byRate);
                                       return (
                                         <div 
                                           key={pIdx} 
                                           className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all" 
-                                          title={`${items[p.itemId]?.name || p.itemId}: ${formatExactTooltip(byRate)}`}
+                                          title={`${items[p.itemId]?.name || p.itemId}: ${formatExactTooltip(byDisp)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'}`}
                                         >
                                           <ItemIcon id={p.itemId} size={32} />
                                           <div className="factorio-badge text-green-400 font-mono">
-                                            {formatBadgeValue(byRate)}
+                                            {formatBadgeValue(byDisp)}
                                           </div>
                                         </div>
                                       );
@@ -1163,13 +1177,13 @@ export default function App() {
                           <td className="px-4 py-3.5 text-left">
                             <div className="flex flex-row overflow-x-auto max-w-[350px] pb-1 gap-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent justify-start">
                               {line.ingredients.map(ing => {
-                                const ingRateForUnit = ing.rate;
+                                const ingRateForUnit = displayRate(ing.rate);
 
                                 return (
                                   <div 
                                     key={ing.itemId} 
                                     className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all"
-                                    title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(ingRateForUnit)}`}
+                                    title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(ingRateForUnit)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'}`}
                                   >
                                     <ItemIcon id={ing.itemId} size={32} type="item" />
                                     <div className="factorio-badge text-xs font-mono">
