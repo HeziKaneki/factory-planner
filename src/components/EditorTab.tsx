@@ -235,7 +235,12 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
       setRecipeId(id);
       setRecipeName(val.name || '');
       setRecipeTime(val.crafting_time ?? 1.0);
-      setRecipeCategory(val.category || 'assembling-machine');
+      const availableKeys = Object.keys(dbMachineCategories);
+      const valCat = val.category;
+      const resolvedCat = (valCat && availableKeys.includes(valCat))
+        ? valCat
+        : (availableKeys.includes('assembling-machine') ? 'assembling-machine' : (availableKeys[0] || 'assembling-machine'));
+      setRecipeCategory(resolvedCat);
       setRecipeIngredients(val.ingredients ? [...val.ingredients] : []);
       setRecipeProducts(val.products ? [...val.products] : [{ itemId: id, amount: 1 }]);
       setRecipeIconUrl(val.icon_url || '');
@@ -271,7 +276,11 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
       setRecipeId('');
       setRecipeName('');
       setRecipeTime(1.0);
-      setRecipeCategory('assembling-machine');
+      const availableKeys = Object.keys(dbMachineCategories);
+      const defaultCat = availableKeys.includes('assembling-machine')
+        ? 'assembling-machine'
+        : (availableKeys[0] || 'assembling-machine');
+      setRecipeCategory(defaultCat);
       setRecipeIngredients([]);
       setRecipeProducts([]);
       setRecipeIconUrl('');
@@ -325,10 +334,14 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
       if (!iconUrl && assetsMap[`recipes:${idToSave}`]) {
         iconUrl = assetsMap[`recipes:${idToSave}`];
       }
+      const availableKeys = Object.keys(dbMachineCategories);
+      const finalCategory = (recipeCategory && availableKeys.includes(recipeCategory))
+        ? recipeCategory
+        : (availableKeys.includes('assembling-machine') ? 'assembling-machine' : (availableKeys[0] || 'assembling-machine'));
       valToSave = {
         name: recipeName,
         crafting_time: Number(recipeTime),
-        category: recipeCategory,
+        category: finalCategory,
         ingredients: recipeIngredients,
         products: recipeProducts.length > 0 ? recipeProducts : [{ itemId: idToSave, amount: 1 }],
         icon_url: iconUrl
