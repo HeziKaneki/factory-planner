@@ -1,5 +1,4 @@
 import { Item, Recipe, Machine, Module, FactoryPage, FactoryPlannerLine } from '../types';
-import { ITEMS, RECIPES, MACHINES, MODULES } from '../data/recipes';
 
 export interface CalculatedLine {
   recipeId: string;
@@ -28,23 +27,6 @@ export function normalizeDatabase(customDb: any) {
   const recipes: Record<string, Recipe & { products?: { itemId: string; amount: number }[] }> = {};
   const machines: Record<string, Machine> = {};
   const modules: Record<string, Module> = {};
-
-  // Initialize with standard fallbacks so older components don't crash
-  Object.entries(ITEMS).forEach(([id, item]) => {
-    items[id] = { ...item };
-  });
-  Object.entries(RECIPES).forEach(([id, recipe]) => {
-    recipes[id] = {
-      ...recipe,
-      products: [{ itemId: id, amount: recipe.yield || 1 }]
-    };
-  });
-  Object.entries(MACHINES).forEach(([id, machine]) => {
-    machines[id] = { ...machine };
-  });
-  Object.entries(MODULES).forEach(([id, mod]) => {
-    modules[id] = { ...mod };
-  });
 
   if (!customDb) {
     return { items, recipes, machines, modules };

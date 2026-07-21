@@ -32,6 +32,41 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
 
   // API endpoints
+  app.get("/api/assets", (req, res) => {
+    try {
+      const assetsMap: Record<string, string> = {};
+      const baseDir = path.join(process.cwd(), "assets");
+      const categories = ["items", "recipes", "machines", "modifiers"];
+
+      categories.forEach(cat => {
+        const dirPath = path.join(baseDir, cat);
+        if (fs.existsSync(dirPath)) {
+          try {
+            const files = fs.readdirSync(dirPath);
+            files.forEach(file => {
+              const extIdx = file.lastIndexOf(".");
+              if (extIdx !== -1) {
+                const id = file.substring(0, extIdx);
+                // Map category:id to the exact static relative URL path
+                assetsMap[`${cat}:${id}`] = `/assets/${cat}/${file}`;
+              }
+            });
+          } catch (err) {
+            console.error(`Error scanning assets for ${cat}:`, err);
+          }
+        }
+      });
+
+      res.json(assetsMap);
+    } catch (error) {
+      console.error("Error in GET /api/assets:", error);
+      res.status(500).json({ error: "Failed to scan assets" });
+    }
+  });
+
+  // Serve custom assets folder statically so they can be accessed at /assets/...
+  app.use("/assets", express.static(path.join(process.cwd(), "assets")));
+
   app.get("/api/db", async (req, res) => {
     try {
       let data;
