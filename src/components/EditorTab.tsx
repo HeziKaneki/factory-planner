@@ -1144,9 +1144,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                     onChange={(e) => setMachineCategory(e.target.value)}
                     className="w-full bg-zinc-950 text-white border border-zinc-800 focus:border-[#e58e26] focus:outline-none px-3 py-1.5 rounded text-xs font-semibold"
                   >
-                    {Object.entries(dbMachineCategories).map(([key, name]: [string, any]) => (
-                      <option key={key} value={key}>{name} ({key})</option>
-                    ))}
+                    {Object.entries(dbMachineCategories).map(([key, name]: [string, any]) => {
+                      const displayName = typeof name === 'string' ? name : (name?.name || key);
+                      return <option key={key} value={key}>{displayName} ({key})</option>;
+                    })}
                   </select>
                 </div>
 
