@@ -118,7 +118,7 @@ export const RecipeSelector: React.FC<RecipeSelectorProps> = ({
                           isSelected ? 'border-[#e58e26] bg-[#e58e26]/10' : ''
                         }`}
                       >
-                        <ItemIcon id={item.id} size={36} />
+                        <ItemIcon id={item.id} size={36} type="item" />
                         
                         {/* Tooltip on hover */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-zinc-950 border border-zinc-800 px-2.5 py-1 text-xs text-white rounded font-medium whitespace-nowrap shadow-xl z-20 pointer-events-none">

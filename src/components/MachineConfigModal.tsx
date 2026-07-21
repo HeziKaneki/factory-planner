@@ -104,7 +104,7 @@ export const MachineConfigModal: React.FC<MachineConfigModalProps> = ({
         {/* Header bar */}
         <div className="flex items-center justify-between border-b-2 border-zinc-950 bg-zinc-900 p-3">
           <div className="flex items-center gap-2">
-            <ItemIcon id={recipeId} size={28} />
+            <ItemIcon id={recipeId} size={28} type="recipe" />
             <h3 className="font-display font-bold text-lg text-[#e58e26] uppercase tracking-wider">
               Configure Machine & Modifiers: {recipe.name}
             </h3>
@@ -144,7 +144,7 @@ export const MachineConfigModal: React.FC<MachineConfigModalProps> = ({
                       >
                         <div className="flex items-center gap-3">
                           <div className="factorio-slot w-10 h-10 flex items-center justify-center bg-zinc-950/50 rounded shadow-inner">
-                            <ItemIcon id={m.id} size={28} />
+                            <ItemIcon id={m.id} size={28} type="machine" />
                           </div>
                           <div className="text-left">
                             <div className="font-bold text-sm">{m.name}</div>
@@ -219,7 +219,7 @@ export const MachineConfigModal: React.FC<MachineConfigModalProps> = ({
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950 border border-zinc-850 shrink-0 rounded">
-                              <ItemIcon id={lm.id} size={24} />
+                              <ItemIcon id={lm.id} size={24} type="modifier" />
                             </div>
                             <div className="min-w-0">
                               <div className="font-bold text-xs text-zinc-100 truncate">{mod.name}</div>
@@ -355,7 +355,7 @@ export const MachineConfigModal: React.FC<MachineConfigModalProps> = ({
                                   }`}
                                 >
                                   <div className="factorio-slot w-7 h-7 flex items-center justify-center bg-zinc-950 shrink-0 rounded">
-                                    <ItemIcon id={m.id} size={18} />
+                                    <ItemIcon id={m.id} size={18} type="modifier" />
                                   </div>
                                   <span className="truncate font-semibold">{m.name}</span>
                                 </button>

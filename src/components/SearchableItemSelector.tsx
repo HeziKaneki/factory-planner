@@ -68,7 +68,7 @@ export const SearchableItemSelector: React.FC<SearchableItemSelectorProps> = ({
       >
         <div className="flex items-center gap-2 truncate">
           <div className="w-5 h-5 flex items-center justify-center shrink-0 bg-zinc-900/60 rounded border border-zinc-800">
-            <ItemIcon id={value} size={14} customUrl={selectedItemIconUrl} />
+            <ItemIcon id={value} size={14} customUrl={selectedItemIconUrl} type="item" />
           </div>
           <span className="truncate">{selectedItemName}</span>
         </div>
@@ -120,7 +120,7 @@ export const SearchableItemSelector: React.FC<SearchableItemSelectorProps> = ({
                   }`}
                 >
                   <div className="w-5 h-5 flex items-center justify-center shrink-0 bg-zinc-950/50 border border-zinc-900 rounded">
-                    <ItemIcon id={id} size={14} customUrl={items[id]?.icon_url} />
+                    <ItemIcon id={id} size={14} customUrl={items[id]?.icon_url} type="item" />
                   </div>
                   <div className="truncate flex-1">
                     <span className="block truncate">{name}</span>

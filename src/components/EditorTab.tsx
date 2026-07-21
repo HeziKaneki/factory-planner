@@ -634,7 +634,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                                 onClick={() => handleStartEdit(id, val)}
                               >
                                 <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
-                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
+                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} type="item" />
                                 </div>
                                 <div className="truncate text-left">
                                   <div className="font-bold text-white">{displayName}</div>
@@ -740,7 +740,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                                 onClick={() => handleStartEdit(id, val)}
                               >
                                 <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
-                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
+                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} type="machine" />
                                 </div>
                                 <div className="truncate text-left">
                                   <div className="font-bold text-white">{displayName}</div>
@@ -840,7 +840,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                                 onClick={() => handleStartEdit(id, val)}
                               >
                                 <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
-                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
+                                  <ItemIcon id={id} size={24} customUrl={val?.icon_url} type="modifier" />
                                 </div>
                                 <div className="truncate text-left">
                                   <div className="font-bold text-white">{displayName}</div>
@@ -915,7 +915,12 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                     onClick={() => handleStartEdit(id, val)}
                   >
                     <div className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 group-hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner">
-                      <ItemIcon id={id} size={24} customUrl={val?.icon_url} />
+                      <ItemIcon 
+                        id={id} 
+                        size={24} 
+                        customUrl={val?.icon_url} 
+                        type={activeSection === 'categories' ? 'category' : (activeSection === 'recipes' ? 'recipe' : undefined)} 
+                      />
                     </div>
                     <div className="truncate text-left">
                       <div className="font-bold text-white">{displayName}</div>
@@ -987,6 +992,13 @@ export const EditorTab: React.FC<EditorTabProps> = ({ customDb, onSave }) => {
                       activeSection === 'machines' ? machineIconUrl : 
                       activeSection === 'modifiers' ? modifierIconUrl : undefined
                     } 
+                    type={
+                      activeSection === 'categories' ? 'category' :
+                      activeSection === 'recipes' ? 'recipe' :
+                      activeSection === 'items' ? 'item' :
+                      activeSection === 'machines' ? 'machine' :
+                      activeSection === 'modifiers' ? 'modifier' : undefined
+                    }
                   />
                 </div>
                 <h3 className="font-display font-bold text-base text-[#e58e26] uppercase tracking-wider">

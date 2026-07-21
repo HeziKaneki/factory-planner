@@ -644,7 +644,7 @@ export default function App() {
                       }`}
                     >
                       <div className={`p-0.5 rounded ${isSelected ? 'bg-zinc-950/10' : 'bg-zinc-950/30'}`}>
-                        <ItemIcon id={page.targetItemId} size={18} />
+                        <ItemIcon id={page.targetItemId} size={18} type="item" />
                       </div>
                       <span className="truncate flex-1">{page.name}</span>
                       {isSelected && (
@@ -673,7 +673,7 @@ export default function App() {
                 {/* Active page item title */}
                 <div className="flex items-center gap-2 text-left">
                   <div className="p-1 rounded bg-zinc-950 border border-zinc-800">
-                    <ItemIcon id={activePage.targetItemId} size={22} />
+                    <ItemIcon id={activePage.targetItemId} size={22} type="item" />
                   </div>
                   <div>
                     <h2 className="text-sm font-bold text-white uppercase tracking-wide">
@@ -756,7 +756,7 @@ export default function App() {
                             }
                           }}
                         >
-                          <ItemIcon id={t.itemId} size={36} />
+                          <ItemIcon id={t.itemId} size={36} type="item" />
                           
                           {/* Target rate badge */}
                           <div
@@ -807,7 +807,7 @@ export default function App() {
                         className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help"
                         title={`${items[bp.itemId]?.name || bp.itemId}: ${formatExactTooltip(bp.rate)}`}
                       >
-                        <ItemIcon id={bp.itemId} size={32} />
+                        <ItemIcon id={bp.itemId} size={32} type="item" />
                         <div className="factorio-badge text-green-400 font-mono">
                           {formatBadgeValue(bp.rate)}
                         </div>
@@ -841,7 +841,7 @@ export default function App() {
                           className="factorio-slot w-11 h-11 shrink-0 group relative cursor-pointer hover:border-[#e58e26] transition-all"
                           title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(rateForUnit)} (Click to select recipe)`}
                         >
-                          <ItemIcon id={ing.itemId} size={32} />
+                          <ItemIcon id={ing.itemId} size={32} type="item" />
                           <div className="factorio-badge text-xs font-mono">
                             {formatBadgeValue(rateForUnit)}
                           </div>
@@ -948,7 +948,7 @@ export default function App() {
                                   }`}
                                 title={`${recipe.name} (producing ${items[stepTargetId]?.name || stepTargetId})`}
                               >
-                                <ItemIcon id={line.recipeId} size={32} />
+                                <ItemIcon id={line.recipeId} size={32} type="recipe" />
                               </div>
                             </div>
                           </td>
@@ -961,7 +961,7 @@ export default function App() {
                                 className="factorio-slot w-11 h-11 shrink-0 relative group hover:border-[#e58e26] cursor-pointer"
                                 title={`${machines[line.machineId]?.name || line.machineId} (Exact Count: ${formatExactTooltip(line.machineCount)}) - Click to config machine & modifiers`}
                               >
-                                <ItemIcon id={line.machineId} size={32} />
+                                <ItemIcon id={line.machineId} size={32} type="machine" />
                                 <div className="factorio-badge text-amber-500 font-bold bg-zinc-950/60 px-0.5 rounded leading-none border border-zinc-900/40">
                                   {formatBadgeValue(line.machineCount)}
                                 </div>
@@ -990,7 +990,7 @@ export default function App() {
                                       className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner relative cursor-pointer"
                                       title={`${modules[lm.id]?.name || lm.id} x${lm.count}`}
                                     >
-                                      <ItemIcon id={lm.id} size={22} />
+                                      <ItemIcon id={lm.id} size={22} type="modifier" />
                                       <div className="absolute -bottom-1 -right-1 text-[9px] font-mono font-bold bg-[#e58e26] text-zinc-950 border border-zinc-950/60 leading-none py-0.5 px-1 rounded shadow">
                                         {lm.count}
                                       </div>
@@ -1075,7 +1075,7 @@ export default function App() {
                                     className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all"
                                     title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(ingRateForUnit)}`}
                                   >
-                                    <ItemIcon id={ing.itemId} size={32} />
+                                    <ItemIcon id={ing.itemId} size={32} type="item" />
                                     <div className="factorio-badge text-xs font-mono">
                                       {formatBadgeValue(ingRateForUnit)}
                                     </div>
@@ -1370,7 +1370,7 @@ export default function App() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-zinc-950 pb-2 mb-4 shrink-0">
               <h3 className="font-display font-bold text-base text-white uppercase tracking-wider flex items-center gap-2">
-                <ItemIcon id={selectedIngredientId} size={24} />
+                <ItemIcon id={selectedIngredientId} size={24} type="item" />
                 Select Recipe for {items[selectedIngredientId]?.name || selectedIngredientId}
               </h3>
               <button 
@@ -1393,7 +1393,7 @@ export default function App() {
                       {/* Left: Recipe Info & Ingredients */}
                       <div className="space-y-2 text-xs">
                         <div className="flex items-center gap-2">
-                          <ItemIcon id={recipe.id} size={28} />
+                          <ItemIcon id={recipe.id} size={28} type="recipe" />
                           <div>
                             <div className="text-sm font-bold text-white leading-tight">{recipe.name || recipe.id}</div>
                             <div className="text-zinc-500 text-[10px] uppercase font-mono">
@@ -1410,7 +1410,7 @@ export default function App() {
                             <div className="flex gap-1.5">
                               {recipe.ingredients.map((ing: any, i: number) => (
                                 <div key={i} className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded text-[10px]" title={items[ing.itemId]?.name || ing.itemId}>
-                                  <ItemIcon id={ing.itemId} size={14} />
+                                  <ItemIcon id={ing.itemId} size={14} type="item" />
                                   <span className="font-mono text-zinc-300 font-bold">{ing.count || ing.amount}</span>
                                 </div>
                               ))}
@@ -1427,13 +1427,13 @@ export default function App() {
                               {recipe.products ? (
                                 recipe.products.map((p: any, i: number) => (
                                   <div key={i} className="flex items-center gap-1 bg-zinc-900/80 border border-zinc-800 px-1.5 py-0.5 rounded text-[10px]" title={items[p.itemId]?.name || p.itemId}>
-                                    <ItemIcon id={p.itemId} size={14} />
+                                    <ItemIcon id={p.itemId} size={14} type="item" />
                                     <span className="font-mono text-green-400 font-bold">{p.amount}</span>
                                   </div>
                                 ))
                               ) : (
                                 <div className="flex items-center gap-1 bg-zinc-900/80 border border-zinc-800 px-1.5 py-0.5 rounded text-[10px]" title={items[recipe.id]?.name || recipe.id}>
-                                  <ItemIcon id={recipe.id} size={14} />
+                                  <ItemIcon id={recipe.id} size={14} type="item" />
                                   <span className="font-mono text-green-400 font-bold">{recipe.yield || 1}</span>
                                 </div>
                               )}

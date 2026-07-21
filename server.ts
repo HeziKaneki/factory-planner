@@ -39,7 +39,7 @@ async function startServer() {
       const baseDir = path.join(process.cwd(), "assets");
       console.log(`[API] Assets base directory resolved to: ${baseDir}. Exists: ${fs.existsSync(baseDir)}`);
       
-      const categories = ["items", "recipes", "machines", "modifiers"];
+      const categories = ["items", "recipes", "machines", "modifiers", "categories"];
 
       categories.forEach(cat => {
         const dirPath = path.join(baseDir, cat);

@@ -5,6 +5,7 @@ interface ItemIconProps {
   className?: string;
   size?: number;
   customUrl?: string;
+  type?: 'item' | 'recipe' | 'machine' | 'modifier' | 'category';
 }
 
 // Global cache for static assets to avoid redundant requests and trial-and-error flickers
@@ -34,7 +35,7 @@ const fetchAssets = (): Promise<Record<string, string>> => {
   return fetchPromise;
 };
 
-export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 24, customUrl }) => {
+export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 24, customUrl, type }) => {
   const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(undefined);
   const [resolvedId, setResolvedId] = useState<string>(id);
 
@@ -52,21 +53,69 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 2
 
       try {
         const saved = localStorage.getItem('factory_planner_custom_db');
-        if (saved) {
-          const parsed = JSON.parse(saved);
+        const parsed = saved ? JSON.parse(saved) : null;
 
-          // 1. Check if it's a recipe
-          const recipe = parsed?.recipes?.[id];
-          if (recipe) {
+        if (type) {
+          if (type === 'recipe') {
+            const recipe = parsed?.recipes?.[id];
+            if (recipe?.icon_url) {
+              resolvedIcon = recipe.icon_url;
+            } else if (assets[`recipes:${id}`]) {
+              resolvedIcon = assets[`recipes:${id}`];
+            } else if (recipe) {
+              // Recipe specific fallback to its first product if it exists
+              const firstProductId = recipe.products?.[0]?.itemId;
+              if (firstProductId) {
+                const productItem = parsed?.items?.[firstProductId];
+                if (productItem?.icon_url) {
+                  resolvedIcon = productItem.icon_url;
+                } else if (assets[`items:${firstProductId}`]) {
+                  resolvedIcon = assets[`items:${firstProductId}`];
+                }
+              }
+            }
+          } else if (type === 'item') {
+            const item = parsed?.items?.[id];
+            if (item?.icon_url) {
+              resolvedIcon = item.icon_url;
+            } else if (assets[`items:${id}`]) {
+              resolvedIcon = assets[`items:${id}`];
+            }
+          } else if (type === 'machine') {
+            const machine = parsed?.machines?.[id];
+            if (machine?.icon_url) {
+              resolvedIcon = machine.icon_url;
+            } else if (assets[`machines:${id}`]) {
+              resolvedIcon = assets[`machines:${id}`];
+            }
+          } else if (type === 'modifier') {
+            const modifier = parsed?.modifiers?.[id];
+            if (modifier?.icon_url) {
+              resolvedIcon = modifier.icon_url;
+            } else if (assets[`modifiers:${id}`]) {
+              resolvedIcon = assets[`modifiers:${id}`];
+            }
+          } else if (type === 'category') {
+            if (assets[`categories:${id}`]) {
+              resolvedIcon = assets[`categories:${id}`];
+            }
+          }
+        } else {
+          // If no type is provided, fall back to matching database tables
+          const isRecipe = parsed?.recipes?.[id];
+          const isItem = parsed?.items?.[id];
+          const isMachine = parsed?.machines?.[id];
+          const isModifier = parsed?.modifiers?.[id];
+
+          if (isRecipe) {
+            const recipe = parsed.recipes[id];
             if (recipe.icon_url) {
               resolvedIcon = recipe.icon_url;
             } else if (assets[`recipes:${id}`]) {
               resolvedIcon = assets[`recipes:${id}`];
             } else {
-              // Recipe fallback to first product
               const firstProductId = recipe.products?.[0]?.itemId || id;
               resolved = firstProductId;
-
               const productItem = parsed?.items?.[firstProductId];
               if (productItem?.icon_url) {
                 resolvedIcon = productItem.icon_url;
@@ -74,21 +123,21 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 2
                 resolvedIcon = assets[`items:${firstProductId}`];
               }
             }
-          } else if (parsed?.items?.[id]) {
+          } else if (isItem) {
             const item = parsed.items[id];
             if (item.icon_url) {
               resolvedIcon = item.icon_url;
             } else if (assets[`items:${id}`]) {
               resolvedIcon = assets[`items:${id}`];
             }
-          } else if (parsed?.machines?.[id]) {
+          } else if (isMachine) {
             const machine = parsed.machines[id];
             if (machine.icon_url) {
               resolvedIcon = machine.icon_url;
             } else if (assets[`machines:${id}`]) {
               resolvedIcon = assets[`machines:${id}`];
             }
-          } else if (parsed?.modifiers?.[id]) {
+          } else if (isModifier) {
             const modifier = parsed.modifiers[id];
             if (modifier.icon_url) {
               resolvedIcon = modifier.icon_url;
@@ -96,14 +145,14 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 2
               resolvedIcon = assets[`modifiers:${id}`];
             }
           } else {
-            // Generic fallback
-            resolvedIcon = assets[`items:${id}`] || assets[`recipes:${id}`] || assets[`machines:${id}`] || assets[`modifiers:${id}`];
+            // Generic fallback ordered check
+            resolvedIcon = assets[`items:${id}`] || assets[`recipes:${id}`] || assets[`machines:${id}`] || assets[`modifiers:${id}`] || assets[`categories:${id}`];
           }
-        } else {
-          resolvedIcon = assets[`items:${id}`] || assets[`recipes:${id}`] || assets[`machines:${id}`] || assets[`modifiers:${id}`];
         }
       } catch (e) {
-        resolvedIcon = assets[`items:${id}`] || assets[`recipes:${id}`] || assets[`machines:${id}`] || assets[`modifiers:${id}`];
+        resolvedIcon = type 
+          ? assets[`${type}:${id}`]
+          : (assets[`items:${id}`] || assets[`recipes:${id}`] || assets[`machines:${id}`] || assets[`modifiers:${id}`] || assets[`categories:${id}`]);
       }
 
       setResolvedUrl(resolvedIcon);
@@ -117,7 +166,7 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 2
         resolveIconPath(assets);
       });
     }
-  }, [id, customUrl]);
+  }, [id, customUrl, type]);
 
   if (resolvedUrl) {
     return (
