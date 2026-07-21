@@ -7,71 +7,117 @@ interface ItemIconProps {
   customUrl?: string;
 }
 
+const getLocalCandidates = (type: 'items' | 'recipes' | 'machines' | 'modifiers', targetId: string): string[] => {
+  const exts = ['png', 'svg', 'webp', 'jpg', 'jpeg'];
+  return exts.map(ext => `/assets/${type}/${targetId}.${ext}`);
+};
+
 export const ItemIcon: React.FC<ItemIconProps> = ({ id, className = '', size = 24, customUrl }) => {
-  const [dbIconUrl, setDbIconUrl] = useState<string | undefined>(undefined);
+  const [candidates, setCandidates] = useState<string[]>([]);
+  const [candidateIndex, setCandidateIndex] = useState<number>(0);
   const [resolvedId, setResolvedId] = useState<string>(id);
-  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    setHasError(false);
+    let urls: string[] = [];
+    let resolved = id;
+
     if (customUrl) {
-      setDbIconUrl(customUrl);
-      setResolvedId(id);
-      return;
+      urls.push(customUrl);
     }
+
     try {
       const saved = localStorage.getItem('factory_planner_custom_db');
       if (saved) {
         const parsed = JSON.parse(saved);
+
+        // 1. Check if it's a recipe
         const recipe = parsed?.recipes?.[id];
         if (recipe) {
           if (recipe.icon_url) {
-            setDbIconUrl(recipe.icon_url);
-            setResolvedId(id);
-          } else {
-            const firstProductId = recipe.products?.[0]?.itemId || id;
-            setResolvedId(firstProductId);
-            if (parsed?.items?.[firstProductId]?.icon_url) {
-              setDbIconUrl(parsed.items[firstProductId].icon_url);
-            } else {
-              setDbIconUrl(undefined);
-            }
+            urls.push(recipe.icon_url);
           }
-          return;
-        }
+          // Try local recipe candidate extensions
+          urls = [...urls, ...getLocalCandidates('recipes', id)];
 
-        if (parsed?.items?.[id]?.icon_url) {
-          setDbIconUrl(parsed.items[id].icon_url);
-          setResolvedId(id);
-          return;
-        }
+          // Recipe fallback to first product
+          const firstProductId = recipe.products?.[0]?.itemId || id;
+          resolved = firstProductId;
 
-        if (parsed?.machines?.[id]?.icon_url) {
-          setDbIconUrl(parsed.machines[id].icon_url);
-          setResolvedId(id);
-          return;
+          const productItem = parsed?.items?.[firstProductId];
+          if (productItem?.icon_url) {
+            urls.push(productItem.icon_url);
+          }
+          urls = [...urls, ...getLocalCandidates('items', firstProductId)];
+        } else if (parsed?.items?.[id]) {
+          const item = parsed.items[id];
+          if (item.icon_url) {
+            urls.push(item.icon_url);
+          }
+          urls = [...urls, ...getLocalCandidates('items', id)];
+        } else if (parsed?.machines?.[id]) {
+          const machine = parsed.machines[id];
+          if (machine.icon_url) {
+            urls.push(machine.icon_url);
+          }
+          urls = [...urls, ...getLocalCandidates('machines', id)];
+        } else if (parsed?.modifiers?.[id]) {
+          const modifier = parsed.modifiers[id];
+          if (modifier.icon_url) {
+            urls.push(modifier.icon_url);
+          }
+          urls = [...urls, ...getLocalCandidates('modifiers', id)];
+        } else {
+          // If not matching any category in custom DB, try all possible local paths
+          urls = [
+            ...urls,
+            ...getLocalCandidates('items', id),
+            ...getLocalCandidates('recipes', id),
+            ...getLocalCandidates('machines', id),
+            ...getLocalCandidates('modifiers', id)
+          ];
         }
-
-        if (parsed?.modifiers?.[id]?.icon_url) {
-          setDbIconUrl(parsed.modifiers[id].icon_url);
-          setResolvedId(id);
-          return;
-        }
+      } else {
+        // Fallback if DB is not in localStorage yet
+        urls = [
+          ...urls,
+          ...getLocalCandidates('items', id),
+          ...getLocalCandidates('recipes', id),
+          ...getLocalCandidates('machines', id),
+          ...getLocalCandidates('modifiers', id)
+        ];
       }
-    } catch (e) {}
-    setDbIconUrl(undefined);
-    setResolvedId(id);
+    } catch (e) {
+      urls = [
+        ...urls,
+        ...getLocalCandidates('items', id),
+        ...getLocalCandidates('recipes', id),
+        ...getLocalCandidates('machines', id),
+        ...getLocalCandidates('modifiers', id)
+      ];
+    }
+
+    // Filter out duplicates and empty/invalid values
+    const uniqueUrls = Array.from(new Set(urls.filter(Boolean)));
+    setCandidates(uniqueUrls);
+    setCandidateIndex(0);
+    setResolvedId(resolved);
   }, [id, customUrl]);
 
-  if (dbIconUrl && !hasError) {
+  const hasValidImage = candidates.length > 0 && candidateIndex < candidates.length;
+
+  const handleImageError = () => {
+    setCandidateIndex(prev => prev + 1);
+  };
+
+  if (hasValidImage) {
     return (
       <img
-        src={dbIconUrl}
+        src={candidates[candidateIndex]}
         alt={id}
         referrerPolicy="no-referrer"
         style={{ width: size, height: size }}
         className={`inline-block select-none pointer-events-none rounded object-contain ${className}`}
-        onError={() => setHasError(true)}
+        onError={handleImageError}
       />
     );
   }
