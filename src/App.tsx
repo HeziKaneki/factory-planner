@@ -14,7 +14,8 @@ import {
   X, 
   ChevronRight, 
   SlidersHorizontal,
-  FolderOpen
+  FolderOpen,
+  GripVertical
 } from 'lucide-react';
 
 import { ItemIcon } from './components/ItemIcon';
@@ -42,15 +43,20 @@ export function formatExactTooltip(value: number): string {
   return (Math.round(value * 1000) / 1000).toString();
 }
 
-// Display one decimal place rounded up on badge values (e.g. 1.21 -> 1.3, 1.0 -> 1)
+// Display up to 3 decimal places accurately on badge values (e.g. 1.234, 1.25, 1.2, 1)
 export function formatBadgeValue(value: number): string {
   if (value === 0) return '0';
-  const roundedUp = Math.ceil(value * 10) / 10;
-  if (roundedUp >= 1000) {
-    const kValue = Math.ceil((value / 1000) * 10) / 10;
-    return kValue % 1 === 0 ? `${kValue.toFixed(0)}k` : `${kValue.toFixed(1)}k`;
+  let val = Math.round(value * 1000) / 1000;
+  if (value > 0 && val === 0) val = 0.001;
+  if (val >= 1000000) {
+    const mValue = Math.round((value / 1000000) * 1000) / 1000;
+    return `${mValue}M`;
   }
-  return roundedUp % 1 === 0 ? `${roundedUp.toFixed(0)}` : `${roundedUp.toFixed(1)}`;
+  if (val >= 1000) {
+    const kValue = Math.round((value / 1000) * 1000) / 1000;
+    return `${kValue}k`;
+  }
+  return `${val}`;
 }
 
 function normalizePages(loadedPages: FactoryPage[]): FactoryPage[] {
@@ -109,6 +115,51 @@ export default function App() {
   });
 
   const [searchPageTerm, setSearchPageTerm] = useState('');
+  
+  // Drag and drop state for factory lines
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
+
+  const handlePageDragStart = (e: React.DragEvent, pageId: string) => {
+    setDraggedPageId(pageId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', pageId);
+  };
+
+  const handlePageDragOver = (e: React.DragEvent, pageId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverPageId !== pageId) {
+      setDragOverPageId(pageId);
+    }
+  };
+
+  const handlePageDrop = (e: React.DragEvent, targetPageId: string) => {
+    e.preventDefault();
+    if (!draggedPageId || draggedPageId === targetPageId) {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+      return;
+    }
+
+    const fromIndex = pages.findIndex(p => p.id === draggedPageId);
+    const toIndex = pages.findIndex(p => p.id === targetPageId);
+
+    if (fromIndex !== -1 && toIndex !== -1) {
+      const updatedPages = [...pages];
+      const [movedPage] = updatedPages.splice(fromIndex, 1);
+      updatedPages.splice(toIndex, 0, movedPage);
+      setPages(updatedPages);
+    }
+
+    setDraggedPageId(null);
+    setDragOverPageId(null);
+  };
+
+  const handlePageDragEnd = () => {
+    setDraggedPageId(null);
+    setDragOverPageId(null);
+  };
   
   // Custom alerts, prompts and modals state
   const [activeLineIdForConfig, setActiveLineIdForConfig] = useState<string | null>(null);
@@ -684,27 +735,53 @@ export default function App() {
                 <span>Your Factory Lines</span>
               </div>
 
-              <div className="space-y-0.5 pl-2 text-left">
+              <div className="space-y-1 pl-1 text-left">
                 {filteredPages.map(page => {
                   const isSelected = page.id === selectedPageId;
+                  const isDragging = page.id === draggedPageId;
+                  const isDragOver = page.id === dragOverPageId;
+
                   return (
-                    <button
+                    <div
                       key={page.id}
-                      onClick={() => setSelectedPageId(page.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-bold transition-all border text-left cursor-pointer ${
+                      draggable
+                      onDragStart={(e) => handlePageDragStart(e, page.id)}
+                      onDragOver={(e) => handlePageDragOver(e, page.id)}
+                      onDrop={(e) => handlePageDrop(e, page.id)}
+                      onDragEnd={handlePageDragEnd}
+                      className={`relative group flex items-center rounded text-xs font-bold transition-all border text-left cursor-pointer select-none ${
+                        isDragging ? 'opacity-30 scale-95' : 'opacity-100'
+                      } ${
+                        isDragOver ? 'border-t-2 border-t-[#e58e26] bg-[#e58e26]/10' : ''
+                      } ${
                         isSelected
                           ? 'bg-[#e58e26] text-zinc-950 border-[#b06a11] shadow-md'
                           : 'bg-zinc-800/10 hover:bg-zinc-800/30 text-zinc-300 border-transparent hover:text-white'
                       }`}
                     >
-                      <div className={`p-0.5 rounded ${isSelected ? 'bg-zinc-950/10' : 'bg-zinc-950/30'}`}>
-                        <ItemIcon id={page.targetItemId} size={18} type="item" />
+                      {/* Drag handle icon */}
+                      <div 
+                        className={`pl-2 pr-0.5 py-2 cursor-grab active:cursor-grabbing shrink-0 opacity-40 group-hover:opacity-100 transition-opacity ${
+                          isSelected ? 'text-zinc-950' : 'text-zinc-400'
+                        }`}
+                        title="Kéo thả để thay đổi vị trí"
+                      >
+                        <GripVertical size={13} />
                       </div>
-                      <span className="truncate flex-1">{page.name}</span>
-                      {isSelected && (
-                        <ChevronRight size={14} className="text-zinc-950 shrink-0" />
-                      )}
-                    </button>
+
+                      <button
+                        onClick={() => setSelectedPageId(page.id)}
+                        className="flex-1 flex items-center gap-2 py-2 pr-2.5 min-w-0 text-left bg-transparent border-none cursor-pointer"
+                      >
+                        <div className={`p-0.5 rounded shrink-0 ${isSelected ? 'bg-zinc-950/10' : 'bg-zinc-950/30'}`}>
+                          <ItemIcon id={page.targetItemId} size={18} type="item" />
+                        </div>
+                        <span className="truncate flex-1">{page.name}</span>
+                        {isSelected && (
+                          <ChevronRight size={14} className="text-zinc-950 shrink-0" />
+                        )}
+                      </button>
+                    </div>
                   );
                 })}
 
@@ -966,17 +1043,16 @@ export default function App() {
               {/* 4. MAIN PRODUCTION STEPS TABLE */}
               <div className="flex-1 overflow-auto bg-[#131313] relative">
                 <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
-                  
                   {/* Table Header */}
-                  <thead className="bg-[#1b1b1b] border-b border-zinc-950 text-xs font-bold uppercase text-zinc-400 sticky top-0 z-10">
+                  <thead className="bg-[#1b1b1b] border-b border-zinc-950 text-[11px] font-bold uppercase text-zinc-400 sticky top-0 z-10">
                     <tr>
-                      <th className="w-24 px-4 py-2.5 tracking-wider border-r border-zinc-950 text-center">Step</th>
-                      <th className="w-20 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Recipe</th>
-                      <th className="w-48 px-4 py-2.5 tracking-wider border-r border-zinc-950">Machine & Count</th>
-                      <th className="w-52 px-4 py-2.5 tracking-wider border-r border-zinc-950">Modifiers</th>
-                      <th className="w-32 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Output Rate</th>
-                      <th className="w-36 px-3 py-2.5 tracking-wider border-r border-zinc-950 text-center">Byproducts</th>
-                      <th className="px-4 py-2.5 tracking-wider">Ingredient Requirements</th>
+                      <th className="w-20 px-2 py-1.5 tracking-wider border-r border-zinc-950 text-center">Step</th>
+                      <th className="w-16 px-2 py-1.5 tracking-wider border-r border-zinc-950 text-center">Recipe</th>
+                      <th className="w-44 px-3 py-1.5 tracking-wider border-r border-zinc-950">Machine & Count</th>
+                      <th className="w-48 px-3 py-1.5 tracking-wider border-r border-zinc-950">Modifiers</th>
+                      <th className="w-28 px-2 py-1.5 tracking-wider border-r border-zinc-950 text-center">Output Rate</th>
+                      <th className="w-32 px-2 py-1.5 tracking-wider border-r border-zinc-950 text-center">Byproducts</th>
+                      <th className="px-3 py-1.5 tracking-wider">Ingredient Requirements</th>
                     </tr>
                   </thead>
 
@@ -1001,8 +1077,8 @@ export default function App() {
                         >
                           
                           {/* Column 1: Step Order & Enabled Checkbox */}
-                          <td className="px-3 py-3.5 border-r border-zinc-950 text-center select-none">
-                            <div className="flex items-center justify-center gap-2">
+                          <td className="px-2 py-1 border-r border-zinc-950 text-center select-none">
+                            <div className="flex items-center justify-center gap-1.5">
                               {/* Sorting arrows */}
                               <div className="flex flex-col gap-0.5 shrink-0">
                                 <button
@@ -1011,7 +1087,7 @@ export default function App() {
                                   className="text-zinc-600 hover:text-white disabled:opacity-20 hover:scale-110 transition-transform cursor-pointer"
                                   title="Move up (Shift+Click to move to top)"
                                 >
-                                  <ArrowUp size={12} />
+                                  <ArrowUp size={11} />
                                 </button>
                                 <button
                                   onClick={(e) => handleMoveLineOrder(index, 'down', e.shiftKey)}
@@ -1019,7 +1095,7 @@ export default function App() {
                                   className="text-zinc-600 hover:text-white disabled:opacity-20 hover:scale-110 transition-transform cursor-pointer"
                                   title="Move down (Shift+Click to move to bottom)"
                                 >
-                                  <ArrowDown size={12} />
+                                  <ArrowDown size={11} />
                                 </button>
                               </div>
 
@@ -1028,50 +1104,50 @@ export default function App() {
                                 type="checkbox"
                                 checked={line.enabled}
                                 onChange={() => handleToggleLineEnabled(line.lineConfig.id)}
-                                className="w-4 h-4 accent-[#e58e26] border-zinc-800 rounded bg-zinc-950 cursor-pointer"
+                                className="w-3.5 h-3.5 accent-[#e58e26] border-zinc-800 rounded bg-zinc-950 cursor-pointer"
                                 title={line.enabled ? 'Click to disable' : 'Click to enable'}
                               />
 
                               {/* Remove step button */}
                               <button
                                 onClick={() => handleRemoveLine(line.lineConfig.id)}
-                                className="text-zinc-600 hover:text-red-500 hover:scale-110 transition-transform cursor-pointer ml-1"
+                                className="text-zinc-600 hover:text-red-500 hover:scale-110 transition-transform cursor-pointer ml-0.5"
                                 title="Remove step"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                           </td>
 
                           {/* Column 2: Recipe Icon */}
-                          <td className="px-2 py-3.5 border-r border-zinc-950 text-center">
+                          <td className="px-1.5 py-1 border-r border-zinc-950 text-center">
                             <div className="flex justify-center">
                               <div 
-                                className={`factorio-slot w-11 h-11 cursor-default ${
+                                className={`factorio-slot w-9 h-9 cursor-default ${
                                   stepTargetId === activePage.targetItemId ? 'border-amber-500 bg-[#e58e26]/5' : ''
                                   }`}
                                 title={`${recipe.name} (producing ${items[stepTargetId]?.name || stepTargetId})`}
                               >
-                                <ItemIcon id={line.recipeId} size={32} type="recipe" />
+                                <ItemIcon id={line.recipeId} size={26} type="recipe" />
                               </div>
                             </div>
                           </td>
 
                           {/* Column 3: Machine & Count */}
-                          <td className="px-4 py-3.5 border-r border-zinc-950">
-                            <div className="flex items-center gap-3">
+                          <td className="px-3 py-1 border-r border-zinc-950">
+                            <div className="flex items-center gap-2">
                               <button
                                 onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
-                                className="factorio-slot w-11 h-11 shrink-0 relative group hover:border-[#e58e26] cursor-pointer"
+                                className="factorio-slot w-9 h-9 shrink-0 relative group hover:border-[#e58e26] cursor-pointer"
                                 title={`${machines[line.machineId]?.name || line.machineId} (Exact Count: ${formatExactTooltip(line.machineCount)}) - Click to config machine & modifiers`}
                               >
-                                <ItemIcon id={line.machineId} size={32} type="machine" />
+                                <ItemIcon id={line.machineId} size={26} type="machine" />
                                 <div className="factorio-badge text-amber-500 font-bold bg-zinc-950/60 px-0.5 rounded leading-none border border-zinc-900/40">
                                   {formatBadgeValue(line.machineCount)}
                                 </div>
                               </button>
 
-                              <div className="flex flex-col flex-1 min-w-0 text-left justify-center">
+                              <div className="flex flex-col flex-1 min-w-0 text-left justify-center leading-tight">
                                 <span className="font-bold text-zinc-300 block text-xs truncate" title={machines[line.machineId]?.name}>
                                   {machines[line.machineId]?.name || line.machineId}
                                 </span>
@@ -1083,19 +1159,19 @@ export default function App() {
                           </td>
 
                           {/* Column 4: Modifiers */}
-                          <td className="px-4 py-3.5 border-r border-zinc-950">
-                            <div className="flex items-center gap-2 max-w-full">
+                          <td className="px-3 py-1 border-r border-zinc-950">
+                            <div className="flex items-center gap-1.5 max-w-full">
                               {line.lineConfig.modifiers && line.lineConfig.modifiers.length > 0 ? (
-                                <div className="flex gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
+                                <div className="flex gap-1 overflow-x-auto max-w-full scrollbar-none">
                                   {line.lineConfig.modifiers.map((lm, lmIdx) => (
                                     <div 
                                       key={lmIdx} 
                                       onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
-                                      className="factorio-slot w-9 h-9 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner relative cursor-pointer"
+                                      className="factorio-slot w-8 h-8 flex items-center justify-center bg-zinc-950/50 border border-zinc-900 hover:border-[#e58e26] shrink-0 transition-colors rounded shadow-inner relative cursor-pointer"
                                       title={`${modules[lm.id]?.name || lm.id} x${lm.count}`}
                                     >
-                                      <ItemIcon id={lm.id} size={22} type="modifier" />
-                                      <div className="absolute -bottom-1 -right-1 text-[9px] font-mono font-bold bg-[#e58e26] text-zinc-950 border border-zinc-950/60 leading-none py-0.5 px-1 rounded shadow">
+                                      <ItemIcon id={lm.id} size={20} type="modifier" />
+                                      <div className="absolute -bottom-1 -right-1 text-[8px] font-mono font-bold bg-[#e58e26] text-zinc-950 border border-zinc-950/60 leading-none py-0.5 px-0.5 rounded shadow">
                                         {lm.count}
                                       </div>
                                     </div>
@@ -1104,7 +1180,7 @@ export default function App() {
                                   {/* Compact Add button */}
                                   <button
                                     onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
-                                    className="w-9 h-9 border border-dashed border-zinc-800 hover:border-zinc-600 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 text-xs shrink-0 cursor-pointer transition-colors bg-zinc-950/10"
+                                    className="w-8 h-8 border border-dashed border-zinc-800 hover:border-zinc-600 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 text-xs shrink-0 cursor-pointer transition-colors bg-zinc-950/10"
                                     title="Add / Edit Modifiers"
                                   >
                                     +
@@ -1113,25 +1189,25 @@ export default function App() {
                               ) : (
                                 <button
                                   onClick={() => setActiveLineIdForConfig(line.lineConfig.id)}
-                                  className="text-[10px] font-semibold text-zinc-600 hover:text-zinc-400 flex items-center gap-1.5 px-2 py-1.5 rounded border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-950/10 cursor-pointer"
+                                  className="text-[10px] font-semibold text-zinc-600 hover:text-zinc-400 flex items-center gap-1 px-2 py-1 rounded border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-950/10 cursor-pointer"
                                 >
-                                  <span>+ Add Modifiers</span>
+                                  <span>+ Modifiers</span>
                                 </button>
                               )}
                             </div>
                           </td>
 
                           {/* Column 5: Output Rate */}
-                          <td className="px-3 py-3.5 border-r border-zinc-950 text-center">
+                          <td className="px-2 py-1 border-r border-zinc-950 text-center">
                             <div className="flex justify-center">
                               {(() => {
                                 const outDisp = displayRate(line.outputRate);
                                 return (
                                   <div 
-                                    className="factorio-slot w-11 h-11 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
+                                    className="factorio-slot w-9 h-9 shrink-0 relative group cursor-default hover:border-[#e58e26] transition-all"
                                     title={`${items[stepTargetId]?.name || stepTargetId}: ${formatExactTooltip(outDisp)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'}`}
                                   >
-                                    <ItemIcon id={stepTargetId} size={32} />
+                                    <ItemIcon id={stepTargetId} size={26} />
                                     <div className="factorio-badge text-green-400 font-mono">
                                       {formatBadgeValue(outDisp)}
                                     </div>
@@ -1142,12 +1218,12 @@ export default function App() {
                           </td>
 
                           {/* Column 6: Byproducts Out Rate */}
-                          <td className="px-3 py-3.5 border-r border-zinc-950 text-center">
+                          <td className="px-2 py-1 border-r border-zinc-950 text-center">
                             <div className="flex justify-center">
                               {(() => {
                                 const lineByproducts = recipe.products ? recipe.products.filter(p => p.itemId !== stepTargetId) : [];
                                 return lineByproducts.length > 0 ? (
-                                  <div className="flex flex-row overflow-x-auto max-w-[150px] pb-1 gap-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                                  <div className="flex flex-row overflow-x-auto max-w-[140px] gap-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                                     {lineByproducts.map((p, pIdx) => {
                                       const primaryProductYield = recipe.products?.find(pr => pr.itemId === stepTargetId)?.amount || recipe.products?.[0]?.amount || 1;
                                       const byRate = line.outputRate * (p.amount / primaryProductYield);
@@ -1155,10 +1231,10 @@ export default function App() {
                                       return (
                                         <div 
                                           key={pIdx} 
-                                          className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all" 
+                                          className="factorio-slot w-9 h-9 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all" 
                                           title={`${items[p.itemId]?.name || p.itemId}: ${formatExactTooltip(byDisp)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'}`}
                                         >
-                                          <ItemIcon id={p.itemId} size={32} />
+                                          <ItemIcon id={p.itemId} size={26} />
                                           <div className="factorio-badge text-green-400 font-mono">
                                             {formatBadgeValue(byDisp)}
                                           </div>
@@ -1174,18 +1250,18 @@ export default function App() {
                           </td>
 
                           {/* Column 7: Step Ingredients Requirements */}
-                          <td className="px-4 py-3.5 text-left">
-                            <div className="flex flex-row overflow-x-auto max-w-[350px] pb-1 gap-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent justify-start">
+                          <td className="px-3 py-1 text-left">
+                            <div className="flex flex-row overflow-x-auto max-w-[350px] gap-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent justify-start">
                               {line.ingredients.map(ing => {
                                 const ingRateForUnit = displayRate(ing.rate);
 
                                 return (
                                   <div 
                                     key={ing.itemId} 
-                                    className="factorio-slot w-11 h-11 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all"
+                                    className="factorio-slot w-9 h-9 shrink-0 group relative cursor-help hover:border-[#e58e26] transition-all"
                                     title={`${items[ing.itemId]?.name || ing.itemId}: ${formatExactTooltip(ingRateForUnit)}${activePage.rateUnit === 'second' ? ' /s' : activePage.rateUnit === 'minute' ? ' /m' : ' belts'}`}
                                   >
-                                    <ItemIcon id={ing.itemId} size={32} type="item" />
+                                    <ItemIcon id={ing.itemId} size={26} type="item" />
                                     <div className="factorio-badge text-xs font-mono">
                                       {formatBadgeValue(ingRateForUnit)}
                                     </div>
@@ -1194,13 +1270,12 @@ export default function App() {
                               })}
                               
                               {line.ingredients.length === 0 && (
-                                <span className="text-zinc-600 text-[11px] italic py-2">
+                                <span className="text-zinc-600 text-[10px] italic py-1">
                                   Direct raw mining / input
                                 </span>
                               )}
                             </div>
                           </td>
-
                         </tr>
                       );
                     })}
