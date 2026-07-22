@@ -876,18 +876,19 @@ export default function App() {
                   {/* Solver mode switch */}
                   <div className="flex items-center bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800 text-xs font-bold gap-2">
                     <span className="text-zinc-400 uppercase text-[10px] tracking-wider">Solver:</span>
-                    <span className="text-white uppercase text-[10px]">Traditional</span>
+                    <span className={`uppercase text-[10px] transition-colors ${activePage.solverMode !== 'matrix' ? 'text-amber-400 font-bold' : 'text-zinc-500'}`}>Traditional</span>
                     <button
                       onClick={handleToggleSolverMode}
                       className="w-8 h-4 rounded-full bg-zinc-800 relative transition-colors duration-100 border border-zinc-950 cursor-pointer"
+                      title={`Click to switch solver mode (Current: ${activePage.solverMode === 'matrix' ? 'Matrix' : 'Traditional'})`}
                     >
                       <div 
-                        className={`w-3.5 h-3.5 rounded-full bg-cyan-400 absolute top-px transition-all duration-100 ${
-                          activePage.solverMode === 'matrix' ? 'left-4' : 'left-px'
+                        className={`w-3.5 h-3.5 rounded-full absolute top-px transition-all duration-100 ${
+                          activePage.solverMode === 'matrix' ? 'left-4 bg-cyan-400' : 'left-px bg-amber-400'
                         }`}
                       ></div>
                     </button>
-                    <span className="text-cyan-400 uppercase text-[10px]">Matrix</span>
+                    <span className={`uppercase text-[10px] transition-colors ${activePage.solverMode === 'matrix' ? 'text-cyan-400 font-bold' : 'text-zinc-500'}`}>Matrix</span>
                     <div className={`w-1.5 h-1.5 rounded-full ${activePage.solverMode === 'matrix' ? 'led-yellow' : 'led-green'}`}></div>
                   </div>
                 </div>

@@ -167,7 +167,74 @@ export function createDefaultLine(recipeId: string, customDb?: any, targetItemId
   };
 }
 
-export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResult {
+/**
+ * Solves A * x = b using Gaussian elimination with partial pivoting.
+ * Returns x array of crafts/sec for each enabled line if successful, or null if singular/unsolvable.
+ */
+function solveLinearSystem(A: number[][], b: number[]): number[] | null {
+  const n = A.length;
+  if (n === 0) return [];
+
+  // Create augmented matrix [A | b]
+  const M: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    M[i] = new Array(n + 1);
+    for (let j = 0; j < n; j++) {
+      M[i][j] = A[i][j];
+    }
+    M[i][n] = b[i];
+  }
+
+  // Forward elimination
+  for (let col = 0; col < n; col++) {
+    // Find pivot
+    let maxRow = col;
+    let maxVal = Math.abs(M[col][col]);
+    for (let row = col + 1; row < n; row++) {
+      const val = Math.abs(M[row][col]);
+      if (val > maxVal) {
+        maxVal = val;
+        maxRow = row;
+      }
+    }
+
+    if (maxVal < 1e-9) {
+      return null; // Singular matrix
+    }
+
+    // Swap max row to current row
+    if (maxRow !== col) {
+      const temp = M[col];
+      M[col] = M[maxRow];
+      M[maxRow] = temp;
+    }
+
+    // Eliminate column entries below
+    for (let row = col + 1; row < n; row++) {
+      const factor = M[row][col] / M[col][col];
+      for (let k = col; k <= n; k++) {
+        M[row][k] -= factor * M[col][k];
+      }
+    }
+  }
+
+  // Back substitution
+  const x: number[] = new Array(n);
+  for (let row = n - 1; row >= 0; row--) {
+    let sum = M[row][n];
+    for (let col = row + 1; col < n; col++) {
+      sum -= M[row][col] * x[col];
+    }
+    const pivot = M[row][row];
+    if (Math.abs(pivot) < 1e-9) return null;
+    x[row] = sum / pivot;
+    if (isNaN(x[row]) || !isFinite(x[row])) return null;
+  }
+
+  return x;
+}
+
+export function solveTraditional(page: FactoryPage, customDb?: any): SolverResult {
   const { items, recipes, machines, modules } = normalizeDatabase(customDb);
 
   // 1. Index current lines for easy lookup
@@ -342,4 +409,256 @@ export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResul
     byproductsSummary,
     totalPower
   };
+}
+
+export function solveMatrix(page: FactoryPage, customDb?: any): SolverResult | null {
+  const { items, recipes, machines, modules } = normalizeDatabase(customDb);
+
+  const targets = page.targetProducts ? page.targetProducts : (page.targetItemId ? [{ itemId: page.targetItemId, rate: page.targetRate }] : []);
+  const targetMap = new Map<string, number>();
+  targets.forEach(t => {
+    targetMap.set(t.itemId, (targetMap.get(t.itemId) || 0) + t.rate);
+  });
+
+  // Filter enabled lines
+  const enabledLineEntries: { lineConfig: FactoryPlannerLine; index: number }[] = [];
+  page.lines.forEach((lineConfig, index) => {
+    if (lineConfig.enabled) {
+      enabledLineEntries.push({ lineConfig, index });
+    }
+  });
+
+  const K = enabledLineEntries.length;
+  if (K === 0) {
+    return null;
+  }
+
+  // Pre-calculate line properties
+  const lineDetails = enabledLineEntries.map(entry => {
+    const recipe = recipes[entry.lineConfig.recipeId];
+    const primaryProductId = entry.lineConfig.targetItemId || recipe?.products?.[0]?.itemId || entry.lineConfig.recipeId;
+    const machine = machines[entry.lineConfig.machineId] || Object.values(machines)[0];
+
+    let speedBonus = 0;
+    let prodBonus = 0;
+    let energyBonus = 0;
+
+    if (entry.lineConfig.modifiers) {
+      entry.lineConfig.modifiers.forEach(lm => {
+        const mod = modules[lm.id];
+        if (mod) {
+          speedBonus += (mod.speedBonus || 0) * lm.count;
+          prodBonus += (mod.productivityBonus || 0) * lm.count;
+          energyBonus += (mod.energyBonus || 0) * lm.count;
+        }
+      });
+    }
+
+    const speedModifier = Math.max(0.20, 1 + speedBonus);
+    const productivityBonus = Math.max(0, prodBonus);
+    const energyModifier = Math.max(0.20, 1 + energyBonus);
+    const actualSpeed = machine ? machine.speed * speedModifier : 1;
+
+    return {
+      lineConfig: entry.lineConfig,
+      recipe,
+      primaryProductId,
+      machine,
+      speedModifier,
+      productivityBonus,
+      energyModifier,
+      actualSpeed
+    };
+  });
+
+  // Construct Matrix A (K x K) and Vector b (K x 1)
+  const A: number[][] = Array.from({ length: K }, () => new Array(K).fill(0));
+  const b: number[] = new Array(K).fill(0);
+
+  const assignedTargetItems = new Set<string>();
+
+  for (let i = 0; i < K; i++) {
+    const primaryItem = lineDetails[i].primaryProductId;
+    
+    if (targetMap.has(primaryItem) && !assignedTargetItems.has(primaryItem)) {
+      b[i] = targetMap.get(primaryItem) || 0;
+      assignedTargetItems.add(primaryItem);
+    } else {
+      b[i] = 0;
+    }
+
+    for (let j = 0; j < K; j++) {
+      const recipeJ = lineDetails[j].recipe;
+      if (!recipeJ) continue;
+
+      let netProductionPerCraft = 0;
+
+      // Add production from recipe J
+      const recipeProducts = recipeJ.products || [{ itemId: recipeJ.id, amount: recipeJ.yield || 1 }];
+      recipeProducts.forEach(p => {
+        if (p.itemId === primaryItem) {
+          netProductionPerCraft += p.amount * (1 + lineDetails[j].productivityBonus);
+        }
+      });
+
+      // Subtract consumption from recipe J
+      if (recipeJ.ingredients) {
+        recipeJ.ingredients.forEach(ing => {
+          if (ing.itemId === primaryItem) {
+            netProductionPerCraft -= ing.count;
+          }
+        });
+      }
+
+      A[i][j] = netProductionPerCraft;
+    }
+  }
+
+  // Solve A * x = b
+  const x = solveLinearSystem(A, b);
+  if (!x) {
+    return null; // Fall back if matrix is singular
+  }
+
+  // Ensure no craft rate is negative
+  for (let i = 0; i < K; i++) {
+    if (x[i] < -1e-6) {
+      return null; // Fall back if negative rates
+    }
+    if (x[i] < 0) x[i] = 0;
+  }
+
+  // Build line outputs and global demands/supplies
+  const demands = new Map<string, number>();
+  const supplies = new Map<string, number>();
+
+  targets.forEach(t => {
+    demands.set(t.itemId, (demands.get(t.itemId) || 0) + t.rate);
+  });
+
+  const calculatedLinesMap = new Map<string, CalculatedLine>();
+
+  lineDetails.forEach((detail, i) => {
+    const craftsPerSec = x[i];
+    const recipe = detail.recipe;
+    const lineConfig = detail.lineConfig;
+
+    let machineCount = 0;
+    let energyUsage = 0;
+    let outputRate = 0;
+    const lineIngredients: { itemId: string; rate: number }[] = [];
+
+    if (recipe) {
+      machineCount = detail.actualSpeed > 0 ? (craftsPerSec * recipe.time) / detail.actualSpeed : 0;
+      energyUsage = (detail.machine && detail.actualSpeed > 0) ? detail.machine.energy * detail.energyModifier * machineCount : 0;
+
+      if (recipe.ingredients) {
+        recipe.ingredients.forEach(ing => {
+          const ingRate = craftsPerSec * ing.count;
+          lineIngredients.push({ itemId: ing.itemId, rate: ingRate });
+          demands.set(ing.itemId, (demands.get(ing.itemId) || 0) + ingRate);
+        });
+      }
+
+      const recipeProducts = recipe.products || [{ itemId: recipe.id, amount: recipe.yield || 1 }];
+      recipeProducts.forEach(p => {
+        const prodRate = craftsPerSec * p.amount * (1 + detail.productivityBonus);
+        supplies.set(p.itemId, (supplies.get(p.itemId) || 0) + prodRate);
+      });
+
+      const targetProduct = recipe.products?.find(p => p.itemId === detail.primaryProductId) || recipe.products?.[0] || null;
+      const primaryYield = targetProduct ? targetProduct.amount : (recipe.yield || 1);
+      outputRate = craftsPerSec * primaryYield * (1 + detail.productivityBonus);
+    }
+
+    calculatedLinesMap.set(lineConfig.id, {
+      recipeId: lineConfig.recipeId,
+      machineId: detail.machine ? detail.machine.id : 'unknown',
+      machineCount,
+      speedModifier: detail.speedModifier,
+      productivityBonus: detail.productivityBonus,
+      energyUsage,
+      outputRate,
+      ingredients: lineIngredients,
+      enabled: true,
+      lineConfig
+    });
+  });
+
+  const calculatedLines: CalculatedLine[] = page.lines.map(lineConfig => {
+    if (!lineConfig.enabled) {
+      const recipe = recipes[lineConfig.recipeId];
+      const machine = machines[lineConfig.machineId] || Object.values(machines)[0];
+      return {
+        recipeId: lineConfig.recipeId,
+        machineId: machine ? machine.id : 'unknown',
+        machineCount: 0,
+        speedModifier: 1,
+        productivityBonus: 0,
+        energyUsage: 0,
+        outputRate: 0,
+        ingredients: recipe?.ingredients ? recipe.ingredients.map(ing => ({ itemId: ing.itemId, rate: 0 })) : [],
+        enabled: false,
+        lineConfig
+      };
+    }
+
+    const calc = calculatedLinesMap.get(lineConfig.id);
+    if (calc) return calc;
+
+    return {
+      recipeId: lineConfig.recipeId,
+      machineId: 'unknown',
+      machineCount: 0,
+      speedModifier: 1,
+      productivityBonus: 0,
+      energyUsage: 0,
+      outputRate: 0,
+      ingredients: [],
+      enabled: false,
+      lineConfig
+    };
+  });
+
+  const totalPower = calculatedLines.reduce((sum, line) => sum + (line.enabled ? line.energyUsage : 0), 0);
+
+  const productsSummary: { itemId: string; rate: number }[] = [];
+  const byproductsSummary: { itemId: string; rate: number }[] = [];
+  const ingredientsSummary: { itemId: string; rate: number }[] = [];
+
+  targets.forEach(t => {
+    productsSummary.push({ itemId: t.itemId, rate: t.rate });
+  });
+
+  const allItemIds = new Set([...Array.from(supplies.keys()), ...Array.from(demands.keys())]);
+
+  allItemIds.forEach(itemId => {
+    const supply = supplies.get(itemId) || 0;
+    const demand = demands.get(itemId) || 0;
+    const diff = supply - demand;
+
+    if (diff > 0.0001) {
+      byproductsSummary.push({ itemId, rate: diff });
+    } else if (diff < -0.0001) {
+      ingredientsSummary.push({ itemId, rate: -diff });
+    }
+  });
+
+  return {
+    lines: calculatedLines,
+    productsSummary,
+    ingredientsSummary,
+    byproductsSummary,
+    totalPower
+  };
+}
+
+export function solveFactoryPage(page: FactoryPage, customDb?: any): SolverResult {
+  if (page.solverMode === 'matrix') {
+    const matrixRes = solveMatrix(page, customDb);
+    if (matrixRes) {
+      return matrixRes;
+    }
+  }
+  return solveTraditional(page, customDb);
 }
