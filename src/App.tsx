@@ -9,6 +9,7 @@ import {
   Search, 
   ArrowUp, 
   ArrowDown, 
+  ArrowRight,
   HelpCircle, 
   Check, 
   X, 
@@ -169,6 +170,16 @@ export default function App() {
   // Custom Dialog boxes instead of window prompts
   const [customPromptType, setCustomPromptType] = useState<'rename' | 'new-page' | 'rate' | 'preferences' | null>(null);
   const [promptInputValue, setPromptInputValue] = useState('');
+
+  // Step recipe cursor-following tooltip state
+  const [hoveredRecipeTooltip, setHoveredRecipeTooltip] = useState<{
+    recipe: any;
+    recipeId: string;
+    machineId?: string;
+    machineCount?: number;
+    x: number;
+    y: number;
+  } | null>(null);
   
   // Auto Load Icons from Assets state
   const [loadIconsStatus, setLoadIconsStatus] = useState<{
@@ -876,19 +887,18 @@ export default function App() {
                   {/* Solver mode switch */}
                   <div className="flex items-center bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800 text-xs font-bold gap-2">
                     <span className="text-zinc-400 uppercase text-[10px] tracking-wider">Solver:</span>
-                    <span className={`uppercase text-[10px] transition-colors ${activePage.solverMode !== 'matrix' ? 'text-amber-400 font-bold' : 'text-zinc-500'}`}>Traditional</span>
+                    <span className="text-white uppercase text-[10px]">Traditional</span>
                     <button
                       onClick={handleToggleSolverMode}
                       className="w-8 h-4 rounded-full bg-zinc-800 relative transition-colors duration-100 border border-zinc-950 cursor-pointer"
-                      title={`Click to switch solver mode (Current: ${activePage.solverMode === 'matrix' ? 'Matrix' : 'Traditional'})`}
                     >
                       <div 
-                        className={`w-3.5 h-3.5 rounded-full absolute top-px transition-all duration-100 ${
-                          activePage.solverMode === 'matrix' ? 'left-4 bg-cyan-400' : 'left-px bg-amber-400'
+                        className={`w-3.5 h-3.5 rounded-full bg-cyan-400 absolute top-px transition-all duration-100 ${
+                          activePage.solverMode === 'matrix' ? 'left-4' : 'left-px'
                         }`}
                       ></div>
                     </button>
-                    <span className={`uppercase text-[10px] transition-colors ${activePage.solverMode === 'matrix' ? 'text-cyan-400 font-bold' : 'text-zinc-500'}`}>Matrix</span>
+                    <span className="text-cyan-400 uppercase text-[10px]">Matrix</span>
                     <div className={`w-1.5 h-1.5 rounded-full ${activePage.solverMode === 'matrix' ? 'led-yellow' : 'led-green'}`}></div>
                   </div>
                 </div>
@@ -1124,10 +1134,19 @@ export default function App() {
                           <td className="px-1.5 py-1 border-r border-zinc-950 text-center">
                             <div className="flex justify-center">
                               <div 
-                                className={`factorio-slot w-9 h-9 cursor-default ${
+                                className={`factorio-slot w-9 h-9 cursor-pointer relative ${
                                   stepTargetId === activePage.targetItemId ? 'border-amber-500 bg-[#e58e26]/5' : ''
-                                  }`}
-                                title={`${recipe.name} (producing ${items[stepTargetId]?.name || stepTargetId})`}
+                                }`}
+                                onMouseEnter={(e) => setHoveredRecipeTooltip({
+                                  recipe,
+                                  recipeId: line.recipeId,
+                                  machineId: line.machineId,
+                                  machineCount: line.machineCount,
+                                  x: e.clientX,
+                                  y: e.clientY
+                                })}
+                                onMouseMove={(e) => setHoveredRecipeTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
+                                onMouseLeave={() => setHoveredRecipeTooltip(null)}
                               >
                                 <ItemIcon id={line.recipeId} size={26} type="recipe" />
                               </div>
@@ -1664,6 +1683,97 @@ export default function App() {
           </motion.div>
         </div>
       )}
+
+      {/* Step Recipe Cursor-Following Tooltip */}
+      {hoveredRecipeTooltip && (() => {
+        const { recipe, recipeId, x, y } = hoveredRecipeTooltip;
+        const tooltipWidth = 280;
+        const tooltipHeight = 110;
+        
+        const left = (x + 18 + tooltipWidth > window.innerWidth) ? Math.max(10, x - tooltipWidth - 10) : x + 18;
+        const top = (y + 18 + tooltipHeight > window.innerHeight) ? Math.max(10, y - tooltipHeight - 10) : y + 18;
+
+        const categoryName = (customDb?.categories && recipe.category && customDb.categories[recipe.category]?.name) || recipe.category;
+
+        const ingredients = recipe.ingredients || [];
+        const products = (recipe.products && recipe.products.length > 0) 
+          ? recipe.products 
+          : [{ itemId: recipeId, amount: 1 }];
+
+        return (
+          <div 
+            style={{ left: `${left}px`, top: `${top}px` }}
+            className="fixed z-50 pointer-events-none factorio-panel border border-amber-600/60 rounded-md p-2.5 shadow-2xl text-left bg-zinc-950/95 backdrop-blur-md text-xs space-y-2 min-w-[220px] max-w-[320px]"
+          >
+            {/* Header: Recipe Name & Category */}
+            <div className="flex items-center justify-between gap-2 border-b border-zinc-800/80 pb-1.5">
+              <div className="font-bold text-xs text-[#e58e26] truncate uppercase tracking-wide">
+                {recipe.name || recipeId}
+              </div>
+              {categoryName && (
+                <span className="text-[9px] bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 text-zinc-400 shrink-0">
+                  {categoryName}
+                </span>
+              )}
+            </div>
+
+            {/* Recipe Production Flow: Inputs -> [Time + Arrow] -> Outputs */}
+            <div className="flex items-center justify-between gap-2 bg-zinc-900/80 p-2 rounded border border-zinc-800/60">
+              
+              {/* Left: Ingredients */}
+              <div className="flex items-center gap-1 flex-wrap justify-start min-w-[40px]">
+                {ingredients.length > 0 ? (
+                  ingredients.map((ing: any, idx: number) => {
+                    const itemObj = items[ing.itemId];
+                    return (
+                      <div 
+                        key={idx} 
+                        className="factorio-slot w-8 h-8 shrink-0 relative group"
+                        title={`${itemObj?.name || ing.itemId}: ${ing.amount}`}
+                      >
+                        <ItemIcon id={ing.itemId} size={22} type="item" />
+                        <div className="factorio-badge text-[9px] text-amber-400 font-mono font-bold leading-none">
+                          {formatBadgeValue(ing.amount)}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <span className="text-[10px] text-zinc-500 italic px-1">Raw</span>
+                )}
+              </div>
+
+              {/* Middle: Crafting Time & Arrow */}
+              <div className="flex flex-col items-center justify-center shrink-0 px-1.5 text-center">
+                <span className="text-[10px] font-mono font-bold text-amber-400/90 whitespace-nowrap leading-none mb-0.5">
+                  ⏱️ {recipe.crafting_time ?? 1}s
+                </span>
+                <ArrowRight size={16} className="text-[#e58e26]" />
+              </div>
+
+              {/* Right: Products */}
+              <div className="flex items-center gap-1 flex-wrap justify-end min-w-[40px]">
+                {products.map((prod: any, idx: number) => {
+                  const itemObj = items[prod.itemId];
+                  return (
+                    <div 
+                      key={idx} 
+                      className="factorio-slot w-8 h-8 shrink-0 relative group"
+                      title={`${itemObj?.name || prod.itemId}: ${prod.amount}`}
+                    >
+                      <ItemIcon id={prod.itemId} size={22} type="item" />
+                      <div className="factorio-badge text-[9px] text-green-400 font-mono font-bold leading-none">
+                        {formatBadgeValue(prod.amount)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
