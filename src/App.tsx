@@ -1724,16 +1724,18 @@ export default function App() {
               <div className="flex items-center gap-1 flex-wrap justify-start min-w-[40px]">
                 {ingredients.length > 0 ? (
                   ingredients.map((ing: any, idx: number) => {
-                    const itemObj = items[ing.itemId];
+                    const ingItemId = ing.itemId || ing.id;
+                    const ingAmount = ing.count ?? ing.amount ?? 1;
+                    const itemObj = items[ingItemId];
                     return (
                       <div 
                         key={idx} 
                         className="factorio-slot w-8 h-8 shrink-0 relative group"
-                        title={`${itemObj?.name || ing.itemId}: ${ing.amount}`}
+                        title={`${itemObj?.name || ingItemId}: ${ingAmount}`}
                       >
-                        <ItemIcon id={ing.itemId} size={22} type="item" />
+                        <ItemIcon id={ingItemId} size={22} type="item" />
                         <div className="factorio-badge text-[9px] text-amber-400 font-mono font-bold leading-none">
-                          {formatBadgeValue(ing.amount)}
+                          {formatBadgeValue(ingAmount)}
                         </div>
                       </div>
                     );
@@ -1746,7 +1748,7 @@ export default function App() {
               {/* Middle: Crafting Time & Arrow */}
               <div className="flex flex-col items-center justify-center shrink-0 px-1.5 text-center">
                 <span className="text-[10px] font-mono font-bold text-amber-400/90 whitespace-nowrap leading-none mb-0.5">
-                  ⏱️ {recipe.crafting_time ?? 1}s
+                  ⏱️ {recipe.time ?? recipe.crafting_time ?? 1}s
                 </span>
                 <ArrowRight size={16} className="text-[#e58e26]" />
               </div>
@@ -1754,16 +1756,18 @@ export default function App() {
               {/* Right: Products */}
               <div className="flex items-center gap-1 flex-wrap justify-end min-w-[40px]">
                 {products.map((prod: any, idx: number) => {
-                  const itemObj = items[prod.itemId];
+                  const prodItemId = prod.itemId || prod.id || recipeId;
+                  const prodAmount = prod.amount ?? prod.count ?? 1;
+                  const itemObj = items[prodItemId];
                   return (
                     <div 
                       key={idx} 
                       className="factorio-slot w-8 h-8 shrink-0 relative group"
-                      title={`${itemObj?.name || prod.itemId}: ${prod.amount}`}
+                      title={`${itemObj?.name || prodItemId}: ${prodAmount}`}
                     >
-                      <ItemIcon id={prod.itemId} size={22} type="item" />
+                      <ItemIcon id={prodItemId} size={22} type="item" />
                       <div className="factorio-badge text-[9px] text-green-400 font-mono font-bold leading-none">
-                        {formatBadgeValue(prod.amount)}
+                        {formatBadgeValue(prodAmount)}
                       </div>
                     </div>
                   );
